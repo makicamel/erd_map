@@ -5,17 +5,16 @@
 class OauthApplication < ApplicationRecord
   has_many :access_grants,
            foreign_key: :application_id,
-           dependent: :delete_all,
-           class_name: Doorkeeper.config.access_grant_class.to_s
+           dependent: :delete_all
 
   has_many :access_tokens,
            foreign_key: :application_id,
            dependent: :delete_all,
-           class_name: Doorkeeper.config.access_token_class.to_s
+           class_name: "OauthAccessToken"
   has_many :authorized_tokens,
           -> { where(revoked_at: nil) },
           foreign_key: :application_id,
-          class_name: Doorkeeper.config.access_token_class.to_s
+          class_name: "OauthAccessToken"
 
   has_many :authorized_applications,
           through: :authorized_tokens,

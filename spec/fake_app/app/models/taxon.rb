@@ -5,7 +5,7 @@
 class Taxon < ApplicationRecord
   belongs_to :taxonomy, inverse_of: :taxons
   has_one :store, through: :taxonomy
-  has_many :classifications, -> { order(:position) }, dependent: :destroy_async, inverse_of: :taxon
+  has_many :classifications, -> { order(:position) }, inverse_of: :taxon
   has_many :products, through: :classifications
   has_one :icon, as: :viewable, dependent: :destroy # TODO: remove this as this is deprecated
 
