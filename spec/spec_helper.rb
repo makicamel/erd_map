@@ -3,19 +3,11 @@
 require "active_record/railtie"
 require "erd_map"
 
-module ErdMapTestApp
-  class Application < Rails::Application
-    config.eager_load = false
-    config.root = "#{__dir__}/fake_app"
-    config.secret_key_base = 'erdmap'
-  end
-end
-
-ErdMapTestApp::Application.initialize!
+require_relative "fake_app/config/environment"
+require_relative "fake_app/db/00000000000000_create_all_tables"
 ActiveRecord::Tasks::DatabaseTasks.drop_current "test"
 ActiveRecord::Tasks::DatabaseTasks.create_current "test"
-
-require_relative "fake_app/fake_app"
+CreateAllTables.change
 
 RSpec.configure do |config|
   config.example_status_persistence_file_path = ".rspec_status"

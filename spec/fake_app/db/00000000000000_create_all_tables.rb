@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class CreateAllTables < ActiveRecord::Migration[7.0]
-  def self.up
+  def change
     create_table 'addresses' do |t|
     end
 
@@ -278,6 +278,8 @@ class CreateAllTables < ActiveRecord::Migration[7.0]
     create_table 'zones' do |t|
     end
   end
-end
 
-CreateAllTables.up
+  def self.change
+    new.change
+  end
+end
