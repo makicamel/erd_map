@@ -3,4 +3,6 @@
 # Models from spree
 # https://github.com/spree/spree
 class OptionTypePrototype < ApplicationRecord
+  belongs_to :option_type
+  belongs_to :prototype
 end
