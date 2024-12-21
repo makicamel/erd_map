@@ -18,6 +18,7 @@ module ErdMap
     end
 
     def build_whole_graph
+      Rails.application.eager_load!
       whole_graph = nx.Graph.new
       models = ActiveRecord::Base.descendants
         .reject { |model| model.name.in?(%w[ActiveRecord::SchemaMigration ActiveRecord::InternalMetadata]) }
@@ -60,16 +61,22 @@ module ErdMap
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(line_alpha: 0.8, line_width: 1)
       end
 
-      bokeh_models.Plot.new.tap do |plot|
-        plot.add_tools(
-          bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
-          bokeh_models.WheelZoomTool.new,
-          bokeh_models.BoxZoomTool.new,
-          bokeh_models.ResetTool.new,
-        )
-        plot.renderers.append(graph_renderer)
-        bokeh_io.show(plot)
-      end
+      plot = bokeh_models.Plot.new
+      plot.add_tools(
+        bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
+        bokeh_models.WheelZoomTool.new,
+        bokeh_models.BoxZoomTool.new,
+        bokeh_models.ResetTool.new,
+      )
+      plot.renderers.append(graph_renderer)
+
+      tmp_dir = Rails.root.join("tmp", "erd_map")
+      FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
+      output_path = File.join(tmp_dir, "result.html")
+
+      bokeh_io.output_file(output_path)
+      bokeh_io.save(plot)
+      puts output_path
     end
 
     def display_nodes_count

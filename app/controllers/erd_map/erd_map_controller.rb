@@ -3,10 +3,12 @@
 module ErdMap
   class ErdMapController < ApplicationController
     def index
-      Rails.application.eager_load!
-      ErdMap.queue.push(-> { ErdMap::MapBuilder.build })
-
-      render json: { message: "ok." }
+      stdout, stderr, status = Open3.capture3("rails runner 'ErdMap::MapBuilder.build'")
+      if status.success?
+        render html: File.read(stdout.chomp).html_safe
+      else
+        render plain: "Error: #{stderr}", status: :unprocessable_entity
+      end
     end
   end
 end
