@@ -57,11 +57,38 @@ module ErdMap
     def render(graph)
       layout = nx.spring_layout(graph, seed: 1)
       graph_renderer = bokeh_plotting.from_networkx(graph, layout).tap do |renderer|
-        renderer.node_renderer.glyph = bokeh_models.Circle.new(radius: 0.05, fill_alpha: 0.2, fill_color: "white")
+        max_label_length = renderer.node_renderer.data_source.data["index"].map(&:size).max
+        char_width = 10
+        renderer.node_renderer.glyph = bokeh_models.Rect.new(
+          width: max_label_length * char_width,
+          height: 60,
+          width_units: "screen",
+          height_units: "screen",
+          fill_alpha: 0.92,
+          fill_color: "white"
+        )
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(line_alpha: 0.8, line_width: 1)
       end
 
-      plot = bokeh_models.Plot.new
+      graph_renderer.node_renderer.data_source.tap do |data_source|
+        data_source.data["x"] = PyCall::List.new(layout.values).map { |coordinate| coordinate[0] }
+        data_source.data["y"] = PyCall::List.new(layout.values).map { |coordinate| coordinate[1] }
+      end
+
+      labels = bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "index",
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "12pt",
+        text_color: "black",
+        text_align: "center",
+        text_baseline: "middle",
+      )
+
+      plot = bokeh_models.Plot.new(
+        sizing_mode: "stretch_both",
+      )
       plot.add_tools(
         bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
         bokeh_models.WheelZoomTool.new,
@@ -69,6 +96,7 @@ module ErdMap
         bokeh_models.ResetTool.new,
       )
       plot.renderers.append(graph_renderer)
+      plot.add_layout(labels)
 
       tmp_dir = Rails.root.join("tmp", "erd_map")
       FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
@@ -80,7 +108,7 @@ module ErdMap
     end
 
     def display_nodes_count
-      @display_nodes_count ||= 10
+      @display_nodes_count ||= 8
     end
 
     class << self
