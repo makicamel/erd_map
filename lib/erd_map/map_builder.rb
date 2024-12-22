@@ -2,9 +2,9 @@
 
 module ErdMap
   class MapBuilder
-    CHUNK_SIZE = 8
+    CHUNK_SIZE = 4
     VISIBLE = 1.0
-    TRANSLUCENT = 0.2
+    TRANSLUCENT = 0
 
     def execute
       import_modules
@@ -78,7 +78,6 @@ module ErdMap
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
         y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
         tools: [
-          bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
           wheel_zoom_tool = bokeh_models.WheelZoomTool.new,
           bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
@@ -117,44 +116,48 @@ module ErdMap
           chunk.forEach((n) => { nodesWithChunkIndex[n] = i })
         })
         const range = cb_obj.end - cb_obj.start
-        const thresholds = [10, 5, 2, 1]
-
-        let showChunksCount = 1
-        for (let i = 0; i < thresholds.length; i++) {
-          if (range < thresholds[i]) {
-            showChunksCount = i + 1
-          }
-        }
-
         const nodeSource = graph_renderer.node_renderer.data_source
         const edgeSource = graph_renderer.edge_renderer.data_source
+        const nodesAlpha = nodeSource.data["alpha"]
+        const nodesIndex = nodeSource.data["index"]
+        const startEdges = edgeSource.data["start"]
+        const targetEdges = edgeSource.data["end"]
+        const edgesAlpha = edgeSource.data["alpha"]
 
-        const nodeAlpha = nodeSource.data["alpha"]
-        const nodeIndex = nodeSource.data["index"]
-
-        for(let i = 0; i < nodeIndex.length; i++) {
-          const nodeName = nodeIndex[i]
-          const chunkIndex = nodesWithChunkIndex[nodeName]
-          if (chunkIndex < showChunksCount) {
-            nodeAlpha[i] = #{VISIBLE}
+        const chunkCount = chunkedNodes.length
+        const thresholds = []
+        for (let i = chunkCount; i > 0; i--) {
+          thresholds.push(0.01 * i)
+        }
+        let displayChunksCount = 1
+        for (let i = chunkCount; i > 0; i--) {
+          if (range < thresholds[i]) {
+            displayChunksCount = i + 1
+            break
           } else {
-            nodeAlpha[i] = #{TRANSLUCENT}
+            displayChunksCount = 1
           }
         }
 
-        const startEdge = edgeSource.data["start"]
-        const endEdge   = edgeSource.data["end"]
-        const alphaEdge = edgeSource.data["alpha"]
-
-        for(let i = 0; i < startEdge.length; i++) {
-          const source = startEdge[i];
-          const target = endEdge[i];
-          const sourceIndex = nodesWithChunkIndex[source];
-          const targetIndex = nodesWithChunkIndex[target];
-          if (sourceIndex < showChunksCount && targetIndex < showChunksCount) {
-            alphaEdge[i] = #{VISIBLE}
+        for(let i = 0; i < nodesIndex.length; i++) {
+          const nodeName = nodesIndex[i]
+          const chunkIndex = nodesWithChunkIndex[nodeName]
+          if (chunkIndex < displayChunksCount) {
+            nodesAlpha[i] = #{VISIBLE}
           } else {
-            alphaEdge[i] = #{TRANSLUCENT}
+            nodesAlpha[i] = #{TRANSLUCENT}
+          }
+        }
+
+        for(let i = 0; i < startEdges.length; i++) {
+          const source = startEdges[i]
+          const target = targetEdges[i]
+          const sourceIndex = nodesWithChunkIndex[source]
+          const targetIndex = nodesWithChunkIndex[target]
+          if (sourceIndex < displayChunksCount && targetIndex < displayChunksCount) {
+            edgesAlpha[i] = #{VISIBLE}
+          } else {
+            edgesAlpha[i] = #{TRANSLUCENT}
           }
         }
 
@@ -192,11 +195,23 @@ module ErdMap
     # [[node_name, node_name, ...], [node_name, node_name, ...], ...]
     def chunked_nodes
       return @chunked_nodes if @chunked_nodes
-      sorted_nodes = nx.eigenvector_centrality(whole_graph) # { node_name => centrality }
-        .sort_by(&:last)
-        .reverse
-        .map(&:first)
-      @chunked_nodes = sorted_nodes.each_slice(CHUNK_SIZE).to_a
+
+      centralities = nx.eigenvector_centrality(whole_graph) # { node_name => centrality }
+      sorted_nodes = centralities.sort_by { |_node, centrality| centrality }.reverse.map(&:first)
+
+      chunk_sizes = []
+      total_nodes = sorted_nodes.size
+      while chunk_sizes.sum < total_nodes
+        chunk_sizes << (CHUNK_SIZE ** (chunk_sizes.size + 1))
+      end
+
+      offset = 0
+      @chunked_nodes = chunk_sizes.each_with_object([]) do |size, nodes|
+        slice = sorted_nodes[offset, size]
+        break nodes if slice.nil? || slice.empty?
+        offset += size
+        nodes << slice
+      end
     end
 
     # { node_name => chunk_index }
