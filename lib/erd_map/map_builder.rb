@@ -6,7 +6,8 @@ module ErdMap
       import_modules
       whole_graph = build_whole_graph
       filtered_graph = build_filtered_graph(whole_graph)
-      render(filtered_graph)
+      plot = build_plot(filtered_graph)
+      save(plot)
     end
 
     private
@@ -54,7 +55,7 @@ module ErdMap
       filtered_graph
     end
 
-    def render(graph)
+    def build_plot(graph)
       layout = nx.spring_layout(graph, seed: 1)
       graph_renderer = bokeh_plotting.from_networkx(graph, layout).tap do |renderer|
         max_label_length = renderer.node_renderer.data_source.data["index"].map(&:size).max
@@ -91,20 +92,23 @@ module ErdMap
       x_min, x_max, y_min, y_max = [:first, :last].flat_map { |i| coordinates.map(&i).minmax }
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
-      plot = bokeh_models.Plot.new(
+      bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
         y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
-      )
-      plot.add_tools(
-        bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
-        bokeh_models.WheelZoomTool.new,
-        bokeh_models.BoxZoomTool.new,
-        bokeh_models.ResetTool.new,
-      )
-      plot.renderers.append(graph_renderer)
-      plot.add_layout(labels)
+      ).tap do |plot|
+        plot.add_tools(
+          bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
+          bokeh_models.WheelZoomTool.new,
+          bokeh_models.BoxZoomTool.new,
+          bokeh_models.ResetTool.new,
+        )
+        plot.renderers.append(graph_renderer)
+        plot.add_layout(labels)
+      end
+    end
 
+    def save(plot)
       tmp_dir = Rails.root.join("tmp", "erd_map")
       FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
       output_path = File.join(tmp_dir, "result.html")
