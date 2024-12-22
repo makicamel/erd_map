@@ -77,14 +77,15 @@ module ErdMap
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
         y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
-      ).tap do |plot|
-        plot.add_tools(
+        tools: [
           bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
-          bokeh_models.WheelZoomTool.new,
+          wheel_zoom_tool = bokeh_models.WheelZoomTool.new,
           bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
-          bokeh_models.PanTool.new,
-        )
+          bokeh_models.PanTool.new
+        ],
+      ).tap do |plot|
+        plot.toolbar.active_scroll = wheel_zoom_tool
         plot.renderers.append(graph_renderer)
         plot.add_layout(labels)
         plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
