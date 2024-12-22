@@ -2,12 +2,13 @@
 
 module ErdMap
   class MapBuilder
+    CHUNK_SIZE = 8
+    VISIBLE = 1.0
+    TRANSLUCENT = 0.2
+
     def execute
       import_modules
-      whole_graph = build_whole_graph
-      filtered_graph = build_filtered_graph(whole_graph)
-      plot = build_plot(filtered_graph)
-      save(plot)
+      save(build_plot)
     end
 
     private
@@ -16,6 +17,153 @@ module ErdMap
 
     def import_modules
       @nx, @bokeh_io, @bokeh_models, @bokeh_plotting, @bokeh_palettes = ErdMap.py_call_modules.imported_modules
+    end
+
+    def build_plot
+      layout = nx.spring_layout(whole_graph, seed: 1)
+
+      graph_renderer = bokeh_plotting.from_networkx(whole_graph, layout).tap do |renderer|
+        node_alpha = PyCall::List.new(layout.keys).map do |node_name|
+          nodes_with_chunk_index[node_name].zero? ? VISIBLE : TRANSLUCENT
+        end
+        renderer.node_renderer.data_source.data["alpha"] = node_alpha
+
+        edge_source = renderer.edge_renderer.data_source
+        edge_alpha = edge_source.data["start"].map.with_index do |_, i|
+          start_node = edge_source.data["start"][i]
+          end_node = edge_source.data["end"][i]
+          (nodes_with_chunk_index[start_node].zero? && nodes_with_chunk_index[end_node].zero?) ? VISIBLE : TRANSLUCENT
+        end
+        renderer.edge_renderer.data_source.data["alpha"] = edge_alpha
+
+        max_label_length = PyCall::List.new(layout.keys).map(&:size).max
+        char_width = 10
+        renderer.node_renderer.glyph = bokeh_models.Rect.new(
+          width: max_label_length * char_width,
+          height: 60,
+          width_units: "screen",
+          height_units: "screen",
+          fill_alpha: { field: "alpha" },
+          fill_color: "blue",
+          line_alpha: { field: "alpha" },
+        )
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
+
+      labels = bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "index",
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "12pt",
+        text_color: "black",
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+      )
+
+      coordinates = PyCall::List.new(layout.values).map { |coordinate| [coordinate[0].to_f, coordinate[1].to_f] }
+      graph_renderer.node_renderer.data_source.data["x"] = coordinates.map(&:first)
+      graph_renderer.node_renderer.data_source.data["y"] = coordinates.map(&:last)
+
+      padding_ratio = 0.1
+      x_min, x_max, y_min, y_max = [:first, :last].flat_map { |i| coordinates.map(&i).minmax }
+      x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
+
+      bokeh_models.Plot.new(
+        sizing_mode: "stretch_both",
+        x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
+        y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
+      ).tap do |plot|
+        plot.add_tools(
+          bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
+          bokeh_models.WheelZoomTool.new,
+          bokeh_models.BoxZoomTool.new,
+          bokeh_models.ResetTool.new,
+          bokeh_models.PanTool.new,
+        )
+        plot.renderers.append(graph_renderer)
+        plot.add_layout(labels)
+        plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
+          args: { graph_renderer: graph_renderer },
+          code: change_visibility_with_zoom
+        ))
+        plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
+          args: { graph_renderer: graph_renderer },
+          code: change_visibility_with_zoom
+        ))
+      end
+    end
+
+    def save(plot)
+      tmp_dir = Rails.root.join("tmp", "erd_map")
+      FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
+      output_path = File.join(tmp_dir, "result.html")
+
+      bokeh_io.output_file(output_path)
+      bokeh_io.save(plot)
+      puts output_path
+    end
+
+    def change_visibility_with_zoom
+      <<~JS
+        const chunkedNodes = #{chunked_nodes.to_json}
+        const nodesWithChunkIndex = {}
+        chunkedNodes.forEach((chunk, i) => {
+          chunk.forEach((n) => { nodesWithChunkIndex[n] = i })
+        })
+        const range = cb_obj.end - cb_obj.start
+        const thresholds = [10, 5, 2, 1]
+
+        let showChunksCount = 1
+        for (let i = 0; i < thresholds.length; i++) {
+          if (range < thresholds[i]) {
+            showChunksCount = i + 1
+          }
+        }
+
+        const nodeSource = graph_renderer.node_renderer.data_source
+        const edgeSource = graph_renderer.edge_renderer.data_source
+
+        const nodeAlpha = nodeSource.data["alpha"]
+        const nodeIndex = nodeSource.data["index"]
+
+        for(let i = 0; i < nodeIndex.length; i++) {
+          const nodeName = nodeIndex[i]
+          const chunkIndex = nodesWithChunkIndex[nodeName]
+          if (chunkIndex < showChunksCount) {
+            nodeAlpha[i] = #{VISIBLE}
+          } else {
+            nodeAlpha[i] = #{TRANSLUCENT}
+          }
+        }
+
+        const startEdge = edgeSource.data["start"]
+        const endEdge   = edgeSource.data["end"]
+        const alphaEdge = edgeSource.data["alpha"]
+
+        for(let i = 0; i < startEdge.length; i++) {
+          const source = startEdge[i];
+          const target = endEdge[i];
+          const sourceIndex = nodesWithChunkIndex[source];
+          const targetIndex = nodesWithChunkIndex[target];
+          if (sourceIndex < showChunksCount && targetIndex < showChunksCount) {
+            alphaEdge[i] = #{VISIBLE}
+          } else {
+            alphaEdge[i] = #{TRANSLUCENT}
+          }
+        }
+
+        nodeSource.change.emit()
+        edgeSource.change.emit()
+      JS
+    end
+
+    def whole_graph
+      @whole_graph ||= build_whole_graph
     end
 
     def build_whole_graph
@@ -40,86 +188,24 @@ module ErdMap
       whole_graph
     end
 
-    def build_filtered_graph(whole_graph)
-      filtered_graph = nx.Graph.new
-      top_nodes = nx.eigenvector_centrality(whole_graph) # { NodeLabel => value }
+    # [[node_name, node_name, ...], [node_name, node_name, ...], ...]
+    def chunked_nodes
+      return @chunked_nodes if @chunked_nodes
+      sorted_nodes = nx.eigenvector_centrality(whole_graph) # { node_name => centrality }
         .sort_by(&:last)
-        .last(display_nodes_count)
+        .reverse
         .map(&:first)
-      top_nodes.each { |node| filtered_graph.add_node(node) }
-      PyCall::List.new(whole_graph.edges).each do |source, target|
-        if top_nodes.include?(source) && top_nodes.include?(target)
-          filtered_graph.add_edge(source, target)
-        end
-      end
-      filtered_graph
+      @chunked_nodes = sorted_nodes.each_slice(CHUNK_SIZE).to_a
     end
 
-    def build_plot(graph)
-      layout = nx.spring_layout(graph, seed: 1)
-      graph_renderer = bokeh_plotting.from_networkx(graph, layout).tap do |renderer|
-        max_label_length = renderer.node_renderer.data_source.data["index"].map(&:size).max
-        char_width = 10
-        renderer.node_renderer.glyph = bokeh_models.Rect.new(
-          width: max_label_length * char_width,
-          height: 60,
-          width_units: "screen",
-          height_units: "screen",
-          fill_alpha: 0.92,
-          fill_color: "white"
-        )
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(line_alpha: 0.8, line_width: 1)
+    # { node_name => chunk_index }
+    def nodes_with_chunk_index
+      return @nodes_with_chunk_index if @nodes_with_chunk_index
+      @nodes_with_chunk_index = {}
+      chunked_nodes.each_with_index do |chunk, i|
+        chunk.each { |node_name| @nodes_with_chunk_index[node_name] = i }
       end
-
-      coordinates = PyCall::List.new(layout.values).map { |coordinate| [coordinate[0].to_f, coordinate[1].to_f] }
-      graph_renderer.node_renderer.data_source.tap do |data_source|
-        data_source.data["x"] = coordinates.map(&:first)
-        data_source.data["y"] = coordinates.map(&:last)
-      end
-
-      labels = bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: "index",
-        source: graph_renderer.node_renderer.data_source,
-        text_font_size: "12pt",
-        text_color: "black",
-        text_align: "center",
-        text_baseline: "middle",
-      )
-
-      padding_ratio = 0.1
-      x_min, x_max, y_min, y_max = [:first, :last].flat_map { |i| coordinates.map(&i).minmax }
-      x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
-
-      bokeh_models.Plot.new(
-        sizing_mode: "stretch_both",
-        x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
-        y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
-      ).tap do |plot|
-        plot.add_tools(
-          bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
-          bokeh_models.WheelZoomTool.new,
-          bokeh_models.BoxZoomTool.new,
-          bokeh_models.ResetTool.new,
-        )
-        plot.renderers.append(graph_renderer)
-        plot.add_layout(labels)
-      end
-    end
-
-    def save(plot)
-      tmp_dir = Rails.root.join("tmp", "erd_map")
-      FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
-      output_path = File.join(tmp_dir, "result.html")
-
-      bokeh_io.output_file(output_path)
-      bokeh_io.save(plot)
-      puts output_path
-    end
-
-    def display_nodes_count
-      @display_nodes_count ||= 8
+      @nodes_with_chunk_index
     end
 
     class << self
