@@ -70,9 +70,10 @@ module ErdMap
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(line_alpha: 0.8, line_width: 1)
       end
 
+      coordinates = PyCall::List.new(layout.values).map { |coordinate| [coordinate[0].to_f, coordinate[1].to_f] }
       graph_renderer.node_renderer.data_source.tap do |data_source|
-        data_source.data["x"] = PyCall::List.new(layout.values).map { |coordinate| coordinate[0] }
-        data_source.data["y"] = PyCall::List.new(layout.values).map { |coordinate| coordinate[1] }
+        data_source.data["x"] = coordinates.map(&:first)
+        data_source.data["y"] = coordinates.map(&:last)
       end
 
       labels = bokeh_models.LabelSet.new(
@@ -86,8 +87,14 @@ module ErdMap
         text_baseline: "middle",
       )
 
+      padding_ratio = 0.1
+      x_min, x_max, y_min, y_max = [:first, :last].flat_map { |i| coordinates.map(&i).minmax }
+      x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
+
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
+        x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
+        y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
       )
       plot.add_tools(
         bokeh_models.HoverTool.new(tooltips: [["Node", "@index"]]),
