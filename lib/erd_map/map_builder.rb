@@ -2,9 +2,9 @@
 
 module ErdMap
   class MapBuilder
-    CHUNK_SIZE = 4
+    CHUNK_SIZE = 3
     VISIBLE = 1.0
-    TRANSLUCENT = 0
+    TRANSLUCENT = 0.01
 
     def execute
       import_modules
@@ -20,7 +20,7 @@ module ErdMap
     end
 
     def build_plot
-      layout = nx.spring_layout(whole_graph, seed: 1)
+      layout = nx.spring_layout(whole_graph, seed: 1, k: 0.1)
 
       graph_renderer = bokeh_plotting.from_networkx(whole_graph, layout).tap do |renderer|
         node_alpha = PyCall::List.new(layout.keys).map do |node_name|
@@ -110,59 +110,84 @@ module ErdMap
 
     def change_visibility_with_zoom
       <<~JS
-        const chunkedNodes = #{chunked_nodes.to_json}
+        const layoutsByChunk = #{layouts_by_chunk.to_json}
+        const chunkedNodes   = #{chunked_nodes.to_json}
         const nodesWithChunkIndex = {}
         chunkedNodes.forEach((chunk, i) => {
           chunk.forEach((n) => { nodesWithChunkIndex[n] = i })
         })
-        const range = cb_obj.end - cb_obj.start
+
         const nodeSource = graph_renderer.node_renderer.data_source
         const edgeSource = graph_renderer.edge_renderer.data_source
         const nodesAlpha = nodeSource.data["alpha"]
         const nodesIndex = nodeSource.data["index"]
+        const nodesX = nodeSource.data["x"]
+        const nodesY = nodeSource.data["y"]
         const startEdges = edgeSource.data["start"]
-        const targetEdges = edgeSource.data["end"]
+        const targetEdges= edgeSource.data["end"]
         const edgesAlpha = edgeSource.data["alpha"]
 
-        const chunkCount = chunkedNodes.length
-        const thresholds = []
-        for (let i = chunkCount; i > 0; i--) {
-          thresholds.push(0.01 * i)
-        }
-        let displayChunksCount = 1
-        for (let i = chunkCount; i > 0; i--) {
-          if (range < thresholds[i]) {
-            displayChunksCount = i + 1
-            break
-          } else {
-            displayChunksCount = 1
-          }
-        }
+        let currentRange = cb_obj.end - cb_obj.start
+        if (window.stableRange === undefined) { window.stableRange = currentRange }
+        if (window.displayChunksCount === undefined) { window.displayChunksCount = 0 }
+        if (window.zoomTimeout !== undefined) { clearTimeout(window.zoomTimeout) }
 
-        for(let i = 0; i < nodesIndex.length; i++) {
-          const nodeName = nodesIndex[i]
-          const chunkIndex = nodesWithChunkIndex[nodeName]
-          if (chunkIndex < displayChunksCount) {
-            nodesAlpha[i] = #{VISIBLE}
-          } else {
-            nodesAlpha[i] = #{TRANSLUCENT}
+        window.zoomTimeout = setTimeout(() => {
+          const stableRange = window.stableRange
+          let displayChunksCount = window.displayChunksCount
+          // distance < 0: Zoom in
+          // 0 < distance: Zoom out
+          let distance = currentRange - stableRange
+          const threshold = stableRange * 0.1
+          if (Math.abs(distance) >= Math.abs(threshold)) {
+            if (distance < 0) { // Zoom in
+              displayChunksCount = Math.min(displayChunksCount + 1, chunkedNodes.length - 1)
+            } else { // Zoom out
+              displayChunksCount = Math.max(displayChunksCount - 1, 0)
+            }
           }
-        }
+          window.displayChunksCount = displayChunksCount
+          window.stableRange = currentRange
 
-        for(let i = 0; i < startEdges.length; i++) {
-          const source = startEdges[i]
-          const target = targetEdges[i]
-          const sourceIndex = nodesWithChunkIndex[source]
-          const targetIndex = nodesWithChunkIndex[target]
-          if (sourceIndex < displayChunksCount && targetIndex < displayChunksCount) {
-            edgesAlpha[i] = #{VISIBLE}
-          } else {
-            edgesAlpha[i] = #{TRANSLUCENT}
+          const selectedLayout = layoutsByChunk[displayChunksCount]
+          for (let i = 0; i < nodesIndex.length; i++) {
+            const nodeName = nodesIndex[i]
+            const chunkIndex = nodesWithChunkIndex[nodeName]
+
+            if (selectedLayout[nodeName]) {
+              const [newX, newY] = selectedLayout[nodeName]
+              nodesX[i] = newX
+              nodesY[i] = newY
+            }
+
+            if (chunkIndex <= displayChunksCount) {
+              nodesAlpha[i] = #{VISIBLE}
+            } else {
+              nodesAlpha[i] = #{TRANSLUCENT}
+            }
           }
-        }
 
-        nodeSource.change.emit()
-        edgeSource.change.emit()
+          for (let i = 0; i < startEdges.length; i++) {
+            const source = startEdges[i]
+            const target = targetEdges[i]
+            const sourceIndex = nodesWithChunkIndex[source]
+            const targetIndex = nodesWithChunkIndex[target]
+
+            if (
+              sourceIndex <= displayChunksCount &&
+              targetIndex <= displayChunksCount &&
+              selectedLayout[source] !== undefined &&
+              selectedLayout[target] !== undefined
+            ) {
+              edgesAlpha[i] = #{VISIBLE}
+            } else {
+              edgesAlpha[i] = #{TRANSLUCENT}
+            }
+          }
+
+          nodeSource.change.emit()
+          edgeSource.change.emit()
+        }, 200)
       JS
     end
 
