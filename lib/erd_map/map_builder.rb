@@ -36,13 +36,9 @@ module ErdMap
         end
         renderer.edge_renderer.data_source.data["alpha"] = edge_alpha
 
-        max_label_length = PyCall::List.new(layout.keys).map(&:size).max
-        char_width = 10
-        renderer.node_renderer.glyph = bokeh_models.Rect.new(
-          width: max_label_length * char_width,
-          height: 60,
-          width_units: "screen",
-          height_units: "screen",
+        renderer.node_renderer.glyph = bokeh_models.Circle.new(
+          radius: 40,
+          radius_units: "screen",
           fill_alpha: { field: "alpha" },
           fill_color: "blue",
           line_alpha: { field: "alpha" },
