@@ -192,6 +192,31 @@ module ErdMap
       whole_graph
     end
 
+    # @return Array: [{ node_name: [x, y] }, { node_name: [x, y] }, ...]
+    def layouts_by_chunk
+      return @layouts_by_chunk if @layouts_by_chunk
+
+      @layouts_by_chunk = []
+
+      chunked_nodes.each_with_index do |_, i|
+        display_nodes = chunked_nodes[0..i].flatten
+        nodes_size = display_nodes.size
+        k = 1.0 / Math.sqrt(nodes_size) * 3.0
+
+        subgraph = whole_graph.subgraph(display_nodes)
+        layout = nx.spring_layout(subgraph, seed: 1, k: k)
+
+        layout_hash = {}
+        layout.each do |node, xy|
+          layout_hash[node] = [xy[0].to_f, xy[1].to_f]
+        end
+
+        @layouts_by_chunk << layout_hash
+      end
+
+      @layouts_by_chunk
+    end
+
     # [[node_name, node_name, ...], [node_name, node_name, ...], ...]
     def chunked_nodes
       return @chunked_nodes if @chunked_nodes
