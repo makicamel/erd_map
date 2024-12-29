@@ -233,7 +233,7 @@ module ErdMap
       whole_graph
     end
 
-    # @return Array: [{ node_name: [x, y] }, { node_name: [x, y] }, ...]
+    # @return Array: [{ "NodeA" => [x, y] }, { "NodeA" => [x, y], "NodeB" => [x, y], "NodeC" => [x, y] }, ...]
     def layouts_by_chunk
       return @layouts_by_chunk if @layouts_by_chunk
 
@@ -258,7 +258,7 @@ module ErdMap
       @layouts_by_chunk
     end
 
-    # [[node_name, node_name, ...], [node_name, node_name, ...], ...]
+    # [[nodeA, nodeB, nodeC], [nodeD, nodeE, nodeF, nodeG, ...], ...]
     def chunked_nodes
       return @chunked_nodes if @chunked_nodes
 
@@ -280,7 +280,7 @@ module ErdMap
       end
     end
 
-    # { node_name => chunk_index }
+    # { "NodeA" => 0, "NodeB" => 0, "NodeC" => 1, ... }
     def nodes_with_chunk_index
       return @nodes_with_chunk_index if @nodes_with_chunk_index
       @nodes_with_chunk_index = {}
