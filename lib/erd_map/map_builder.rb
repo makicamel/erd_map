@@ -20,30 +20,47 @@ module ErdMap
     end
 
     def build_plot
-      layout = nx.spring_layout(whole_graph, seed: 1, k: 0.1)
+      initial_nodes = chunked_nodes.first
+      initial_layout = layouts_by_chunk.first
 
-      graph_renderer = bokeh_plotting.from_networkx(whole_graph, layout).tap do |renderer|
-        node_alpha = PyCall::List.new(layout.keys).map do |node_name|
-          nodes_with_chunk_index[node_name].zero? ? VISIBLE : TRANSLUCENT
-        end
-        renderer.node_renderer.data_source.data["alpha"] = node_alpha
+      node_names = PyCall::List.new(whole_graph.nodes)
+      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : [0.0, 0.0] }.transpose
 
-        edge_source = renderer.edge_renderer.data_source
-        edge_alpha = edge_source.data["start"].map.with_index do |_, i|
-          start_node = edge_source.data["start"][i]
-          end_node = edge_source.data["end"][i]
-          (nodes_with_chunk_index[start_node].zero? && nodes_with_chunk_index[end_node].zero?) ? VISIBLE : TRANSLUCENT
-        end
-        renderer.edge_renderer.data_source.data["alpha"] = edge_alpha
+      graph_layout = node_names.zip(nodes_x, nodes_y).map { |node, x, y| [node, [x, y]] }.to_h
+      layout_provider = bokeh_models.StaticLayoutProvider.new(graph_layout: graph_layout)
+
+      graph_renderer = bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
+        nodes_alpha = node_names.map { |node| initial_nodes.include?(node) ? VISIBLE : TRANSLUCENT }
+        renderer.node_renderer.data_source = bokeh_models.ColumnDataSource.new(
+          data: {
+            index: node_names,
+            alpha: nodes_alpha,
+            x: nodes_x,
+            y: nodes_y,
+          }
+        )
+
+        edges = PyCall::List.new(whole_graph.edges)
+        edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
+        edges_alpha = edges.map { |edge| initial_nodes.include?(edge[0]) && initial_nodes.include?(edge[1]) ? VISIBLE : TRANSLUCENT }
+        renderer.edge_renderer.data_source = bokeh_models.ColumnDataSource.new(
+          data: {
+            start: edge_start,
+            end: edge_end,
+            alpha: edges_alpha,
+          }
+        )
 
         renderer.node_renderer.glyph = bokeh_models.Circle.new(
           radius: 40,
           radius_units: "screen",
+          fill_color: "skyblue",
           fill_alpha: { field: "alpha" },
-          fill_color: "blue",
           line_alpha: { field: "alpha" },
         )
+
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: "gray",
           line_alpha: { field: "alpha" },
           line_width: 1,
         )
@@ -61,12 +78,8 @@ module ErdMap
         text_alpha: { field: "alpha" },
       )
 
-      coordinates = PyCall::List.new(layout.values).map { |coordinate| [coordinate[0].to_f, coordinate[1].to_f] }
-      graph_renderer.node_renderer.data_source.data["x"] = coordinates.map(&:first)
-      graph_renderer.node_renderer.data_source.data["y"] = coordinates.map(&:last)
-
       padding_ratio = 0.1
-      x_min, x_max, y_min, y_max = [:first, :last].flat_map { |i| coordinates.map(&i).minmax }
+      x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
       bokeh_models.Plot.new(
@@ -84,11 +97,11 @@ module ErdMap
         plot.renderers.append(graph_renderer)
         plot.add_layout(labels)
         plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
-          args: { graph_renderer: graph_renderer },
+          args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
           code: change_visibility_with_zoom
         ))
         plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
-          args: { graph_renderer: graph_renderer },
+          args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
           code: change_visibility_with_zoom
         ))
       end
@@ -113,8 +126,8 @@ module ErdMap
           chunk.forEach((n) => { nodesWithChunkIndex[n] = i })
         })
 
-        const nodeSource = graph_renderer.node_renderer.data_source
-        const edgeSource = graph_renderer.edge_renderer.data_source
+        const nodeSource = graphRenderer.node_renderer.data_source
+        const edgeSource = graphRenderer.edge_renderer.data_source
         const nodesAlpha = nodeSource.data["alpha"]
         const nodesIndex = nodeSource.data["index"]
         const nodesX = nodeSource.data["x"]
@@ -183,6 +196,13 @@ module ErdMap
 
           nodeSource.change.emit()
           edgeSource.change.emit()
+
+          const newGraphLayout = {}
+          for (let i = 0; i < nodesIndex.length; i++) {
+            newGraphLayout[nodesIndex[i]] = [nodesX[i], nodesY[i]]
+          }
+          layoutProvider.graph_layout = newGraphLayout
+          layoutProvider.change.emit()
         }, 200)
       JS
     end
