@@ -24,7 +24,9 @@
   if (window.displayChunksCount === undefined) { window.displayChunksCount = 0 }
   if (window.zoomTimeout !== undefined) { clearTimeout(window.zoomTimeout) }
 
-  window.zoomTimeout = setTimeout(() => {
+  window.zoomTimeout = setTimeout(handleZoomTimeout, 200)
+
+  function handleZoomTimeout() {
     const stableRange = window.stableRange
     let displayChunksCount = window.displayChunksCount
     // distance < 0: Zoom in
@@ -42,25 +44,17 @@
     window.stableRange = currentRange
 
     const selectedLayout = layoutsByChunk[displayChunksCount]
-    for (let i = 0; i < nodesIndex.length; i++) {
-      const nodeName = nodesIndex[i]
+    nodesIndex.forEach((nodeName, i) => {
       const chunkIndex = nodesWithChunkIndex[nodeName]
-
       if (selectedLayout[nodeName]) {
         const [newX, newY] = selectedLayout[nodeName]
         nodesX[i] = newX
         nodesY[i] = newY
       }
+      nodesAlpha[i] = chunkIndex <= displayChunksCount ? VISIBLE : TRANSLUCENT
+    })
 
-      if (chunkIndex <= displayChunksCount) {
-        nodesAlpha[i] = VISIBLE
-      } else {
-        nodesAlpha[i] = TRANSLUCENT
-      }
-    }
-
-    for (let i = 0; i < startEdges.length; i++) {
-      const source = startEdges[i]
+    startEdges.forEach((source, i) => {
       const target = targetEdges[i]
       const sourceIndex = nodesWithChunkIndex[source]
       const targetIndex = nodesWithChunkIndex[target]
@@ -75,16 +69,16 @@
       } else {
         edgesAlpha[i] = TRANSLUCENT
       }
-    }
+    })
 
     nodeSource.change.emit()
     edgeSource.change.emit()
 
     const newGraphLayout = {}
-    for (let i = 0; i < nodesIndex.length; i++) {
-      newGraphLayout[nodesIndex[i]] = [nodesX[i], nodesY[i]]
-    }
+    nodesIndex.forEach((nodeName, i) => {
+      newGraphLayout[nodeName] = [nodesX[i], nodesY[i]]
+    })
     layoutProvider.graph_layout = newGraphLayout
     layoutProvider.change.emit()
-  }, 200)
+  }
 })()
