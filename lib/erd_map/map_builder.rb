@@ -96,6 +96,9 @@ module ErdMap
         plot.toolbar.active_scroll = wheel_zoom_tool
         plot.renderers.append(graph_renderer)
         plot.add_layout(labels)
+        plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
+          code: save_mouse_position
+        ))
         plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
           args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
           code: change_visibility_with_zoom
@@ -103,6 +106,10 @@ module ErdMap
         plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
           args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
           code: change_visibility_with_zoom
+        ))
+        plot.js_on_event("reset", bokeh_models.CustomJS.new(
+          args: { layoutProvider: layout_provider, selectedLayout: layouts_by_chunk.first },
+          code: reset_plot
         ))
       end
     end
@@ -117,6 +124,16 @@ module ErdMap
       puts output_path
     end
 
+    def save_mouse_position
+      <<~JS
+        if (window.saveMousePosition !== undefined) { clearTimeout(window.saveMousePosition) }
+        window.saveMousePosition = setTimeout(function() {
+          window.lastMouseX = cb_obj.x
+          window.lastMouseY = cb_obj.y
+        }, 100)
+      JS
+    end
+
     def change_visibility_with_zoom
       js_path = __dir__ + "/visibility_changer.js.erb"
       ERB.new(File.read(js_path)).result_with_hash({
@@ -125,6 +142,17 @@ module ErdMap
         visible: VISIBLE,
         translucent: TRANSLUCENT,
       })
+    end
+
+    def reset_plot
+      <<~JS
+        window.previousShiftX = 0
+        window.previousShiftY = 0
+        window.stableRange = undefined
+        window.displayChunksCount = 0
+        layoutProvider.graph_layout = #{layouts_by_chunk.first.to_json}
+        layoutProvider.change.emit()
+      JS
     end
 
     def whole_graph

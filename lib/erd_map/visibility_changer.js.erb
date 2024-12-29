@@ -24,6 +24,8 @@
   if (window.displayChunksCount === undefined) { window.displayChunksCount = 0 }
   if (window.zoomTimeout !== undefined) { clearTimeout(window.zoomTimeout) }
 
+  const previousDisplayChunksCount = window.displayChunksCount
+
   window.zoomTimeout = setTimeout(handleZoomTimeout, 200)
 
   function handleZoomTimeout() {
@@ -42,6 +44,8 @@
     }
     window.displayChunksCount = displayChunksCount
     window.stableRange = currentRange
+
+    if (displayChunksCount === previousDisplayChunksCount) { return }
 
     const selectedLayout = layoutsByChunk[displayChunksCount]
     nodesIndex.forEach((nodeName, i) => {
@@ -70,6 +74,38 @@
         edgesAlpha[i] = TRANSLUCENT
       }
     })
+
+    const mouseX = window.lastMouseX ?? 0
+    const mouseY = window.lastMouseY ?? 0
+
+    if (window.previousShiftX === undefined) { window.previousShiftX = 0 }
+    if (window.previousShiftY === undefined) { window.previousShiftY = 0 }
+
+    let closestNodeName
+    let minmumDistance = Infinity
+    const previousLayout = layoutsByChunk[previousDisplayChunksCount]
+    nodesIndex.forEach((nodeName, _i) => {
+      if (previousLayout[nodeName] === undefined) { return }
+      const nodeX = previousLayout[nodeName][0] + window.previousShiftX
+      const nodeY = previousLayout[nodeName][1] + window.previousShiftY
+      const dx = nodeX - mouseX
+      const dy = nodeY - mouseY
+      const distance = dx * dx + dy * dy
+      if (distance < minmumDistance) {
+        minmumDistance = distance
+        closestNodeName = nodeName
+      }
+    })
+
+    if (closestNodeName && selectedLayout[closestNodeName]) {
+      const closestNode = selectedLayout[closestNodeName]
+      window.previousShiftX = mouseX - closestNode[0]
+      window.previousShiftY = mouseY - closestNode[1]
+      nodesIndex.forEach((_nodeName, i) => {
+        nodesX[i] += window.previousShiftX
+        nodesY[i] += window.previousShiftY
+      })
+    }
 
     nodeSource.change.emit()
     edgeSource.change.emit()
