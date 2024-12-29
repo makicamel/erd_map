@@ -118,93 +118,13 @@ module ErdMap
     end
 
     def change_visibility_with_zoom
-      <<~JS
-        const layoutsByChunk = #{layouts_by_chunk.to_json}
-        const chunkedNodes   = #{chunked_nodes.to_json}
-        const nodesWithChunkIndex = {}
-        chunkedNodes.forEach((chunk, i) => {
-          chunk.forEach((n) => { nodesWithChunkIndex[n] = i })
-        })
-
-        const nodeSource = graphRenderer.node_renderer.data_source
-        const edgeSource = graphRenderer.edge_renderer.data_source
-        const nodesAlpha = nodeSource.data["alpha"]
-        const nodesIndex = nodeSource.data["index"]
-        const nodesX = nodeSource.data["x"]
-        const nodesY = nodeSource.data["y"]
-        const startEdges = edgeSource.data["start"]
-        const targetEdges= edgeSource.data["end"]
-        const edgesAlpha = edgeSource.data["alpha"]
-
-        let currentRange = cb_obj.end - cb_obj.start
-        if (window.stableRange === undefined) { window.stableRange = currentRange }
-        if (window.displayChunksCount === undefined) { window.displayChunksCount = 0 }
-        if (window.zoomTimeout !== undefined) { clearTimeout(window.zoomTimeout) }
-
-        window.zoomTimeout = setTimeout(() => {
-          const stableRange = window.stableRange
-          let displayChunksCount = window.displayChunksCount
-          // distance < 0: Zoom in
-          // 0 < distance: Zoom out
-          let distance = currentRange - stableRange
-          const threshold = stableRange * 0.1
-          if (Math.abs(distance) >= Math.abs(threshold)) {
-            if (distance < 0) { // Zoom in
-              displayChunksCount = Math.min(displayChunksCount + 1, chunkedNodes.length - 1)
-            } else { // Zoom out
-              displayChunksCount = Math.max(displayChunksCount - 1, 0)
-            }
-          }
-          window.displayChunksCount = displayChunksCount
-          window.stableRange = currentRange
-
-          const selectedLayout = layoutsByChunk[displayChunksCount]
-          for (let i = 0; i < nodesIndex.length; i++) {
-            const nodeName = nodesIndex[i]
-            const chunkIndex = nodesWithChunkIndex[nodeName]
-
-            if (selectedLayout[nodeName]) {
-              const [newX, newY] = selectedLayout[nodeName]
-              nodesX[i] = newX
-              nodesY[i] = newY
-            }
-
-            if (chunkIndex <= displayChunksCount) {
-              nodesAlpha[i] = #{VISIBLE}
-            } else {
-              nodesAlpha[i] = #{TRANSLUCENT}
-            }
-          }
-
-          for (let i = 0; i < startEdges.length; i++) {
-            const source = startEdges[i]
-            const target = targetEdges[i]
-            const sourceIndex = nodesWithChunkIndex[source]
-            const targetIndex = nodesWithChunkIndex[target]
-
-            if (
-              sourceIndex <= displayChunksCount &&
-              targetIndex <= displayChunksCount &&
-              selectedLayout[source] !== undefined &&
-              selectedLayout[target] !== undefined
-            ) {
-              edgesAlpha[i] = #{VISIBLE}
-            } else {
-              edgesAlpha[i] = #{TRANSLUCENT}
-            }
-          }
-
-          nodeSource.change.emit()
-          edgeSource.change.emit()
-
-          const newGraphLayout = {}
-          for (let i = 0; i < nodesIndex.length; i++) {
-            newGraphLayout[nodesIndex[i]] = [nodesX[i], nodesY[i]]
-          }
-          layoutProvider.graph_layout = newGraphLayout
-          layoutProvider.change.emit()
-        }, 200)
-      JS
+      js_path = __dir__ + "/visibility_changer.js.erb"
+      ERB.new(File.read(js_path)).result_with_hash({
+        layouts_by_chunk: layouts_by_chunk,
+        chunked_nodes: chunked_nodes,
+        visible: VISIBLE,
+        translucent: TRANSLUCENT,
+      })
     end
 
     def whole_graph
