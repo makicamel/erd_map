@@ -5,6 +5,10 @@ module ErdMap
     CHUNK_SIZE = 3
     VISIBLE = 1.0
     TRANSLUCENT = 0.01
+    BASIC_COLOR = "skyblue"
+    HIGHLIGHT_COLOR = "orange"
+    BASIC_SIZE = 40
+    EMPTHASIS_SIZE = 60
 
     def execute
       import_modules
@@ -37,21 +41,16 @@ module ErdMap
             alpha: nodes_alpha,
             x: nodes_x,
             y: nodes_y,
+            radius: node_names.map { BASIC_SIZE },
+            fill_color: node_names.map { BASIC_COLOR },
           }
         )
         renderer.node_renderer.glyph = bokeh_models.Circle.new(
-          radius: 40,
+          radius: "radius",
           radius_units: "screen",
-          fill_color: "skyblue",
+          fill_color: { field: "fill_color" },
           fill_alpha: { field: "alpha" },
           line_alpha: { field: "alpha" },
-        )
-        renderer.node_renderer.hover_glyph = bokeh_models.Circle.new(
-          radius: 60,
-          radius_units: "screen",
-          fill_color: "orange",
-          fill_alpha: 1.0,
-          line_alpha: 1.0,
         )
 
         edges = PyCall::List.new(whole_graph.edges)
@@ -96,7 +95,6 @@ module ErdMap
           bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
           bokeh_models.PanTool.new,
-          bokeh_models.HoverTool.new(tooltips: nil, renderers: [graph_renderer.node_renderer]),
         ],
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
@@ -116,6 +114,23 @@ module ErdMap
         plot.js_on_event("reset", bokeh_models.CustomJS.new(
           args: { layoutProvider: layout_provider, selectedLayout: layouts_by_chunk.first },
           code: reset_plot
+        ))
+
+        connections = PyCall::List.new(whole_graph.edges).each_with_object(Hash.new { |h, k| h[k] = [] }) do |(a, b), hash|
+          hash[a] << b
+          hash[b] << a
+        end
+        plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
+          args: {
+            nodeSource: graph_renderer.node_renderer.data_source,
+            connectionsData: connections.to_json,
+            layoutsByChunk: layouts_by_chunk.to_json,
+            BASIC_COLOR: BASIC_COLOR,
+            HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
+            BASIC_SIZE: BASIC_SIZE,
+            EMPTHASIS_SIZE: EMPTHASIS_SIZE,
+          },
+          code: hover_handler
         ))
       end
     end
@@ -148,6 +163,11 @@ module ErdMap
         visible: VISIBLE,
         translucent: TRANSLUCENT,
       })
+    end
+
+    def hover_handler
+      js_path = __dir__ + "/hover_handler.js"
+      File.read(js_path)
     end
 
     def reset_plot
