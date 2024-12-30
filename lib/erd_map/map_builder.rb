@@ -61,10 +61,11 @@ module ErdMap
             start: edge_start,
             end: edge_end,
             alpha: edges_alpha,
+            line_color: edges.map { "gray" },
           }
         )
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: "gray",
+          line_color: { field: "line_color" },
           line_alpha: { field: "alpha" },
           line_width: 1,
         )
@@ -122,7 +123,7 @@ module ErdMap
         end
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           args: {
-            nodeSource: graph_renderer.node_renderer.data_source,
+            graphRenderer: graph_renderer,
             connectionsData: connections.to_json,
             layoutsByChunk: layouts_by_chunk.to_json,
             BASIC_COLOR: BASIC_COLOR,
