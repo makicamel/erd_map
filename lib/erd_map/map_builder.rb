@@ -39,6 +39,20 @@ module ErdMap
             y: nodes_y,
           }
         )
+        renderer.node_renderer.glyph = bokeh_models.Circle.new(
+          radius: 40,
+          radius_units: "screen",
+          fill_color: "skyblue",
+          fill_alpha: { field: "alpha" },
+          line_alpha: { field: "alpha" },
+        )
+        renderer.node_renderer.hover_glyph = bokeh_models.Circle.new(
+          radius: 60,
+          radius_units: "screen",
+          fill_color: "orange",
+          fill_alpha: 1.0,
+          line_alpha: 1.0,
+        )
 
         edges = PyCall::List.new(whole_graph.edges)
         edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
@@ -50,15 +64,6 @@ module ErdMap
             alpha: edges_alpha,
           }
         )
-
-        renderer.node_renderer.glyph = bokeh_models.Circle.new(
-          radius: 40,
-          radius_units: "screen",
-          fill_color: "skyblue",
-          fill_alpha: { field: "alpha" },
-          line_alpha: { field: "alpha" },
-        )
-
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
           line_color: "gray",
           line_alpha: { field: "alpha" },
@@ -90,7 +95,8 @@ module ErdMap
           wheel_zoom_tool = bokeh_models.WheelZoomTool.new,
           bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
-          bokeh_models.PanTool.new
+          bokeh_models.PanTool.new,
+          bokeh_models.HoverTool.new(tooltips: nil, renderers: [graph_renderer.node_renderer]),
         ],
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
