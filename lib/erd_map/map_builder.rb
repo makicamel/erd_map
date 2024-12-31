@@ -52,6 +52,8 @@ module ErdMap
           fill_alpha: { field: "alpha" },
           line_alpha: { field: "alpha" },
         )
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
 
         edges = PyCall::List.new(whole_graph.edges)
         edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
@@ -96,6 +98,7 @@ module ErdMap
           bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
           bokeh_models.PanTool.new,
+          tap_tool = bokeh_models.TapTool.new,
         ],
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
@@ -139,7 +142,7 @@ module ErdMap
           args: {
             graphRenderer: graph_renderer,
             connectionsData: connections.to_json,
-            layoutsByChunk: layouts_by_chunk.to_json,
+            layoutsByChunkData: layouts_by_chunk.to_json,
             BASIC_COLOR: BASIC_COLOR,
             HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
             BASIC_SIZE: BASIC_SIZE,
@@ -147,6 +150,17 @@ module ErdMap
           },
           code: hover_handler
         ))
+        tap_tool.callback = bokeh_models.CustomJS.new(
+          args: {
+            graphRenderer: graph_renderer,
+            layoutProvider: layout_provider,
+            layoutsByChunkData: layouts_by_chunk.to_json,
+            connectionsData: connections.to_json,
+            VISIBLE: VISIBLE,
+            TRANSLUCENT: TRANSLUCENT,
+          },
+          code: tap_display_toggle
+        )
       end
     end
 
@@ -180,12 +194,18 @@ module ErdMap
       [util_js, File.read(js_path)].join("\n")
     end
 
+    def tap_display_toggle
+      js_path = __dir__ + "/tap_display_toggle.js"
+      [util_js, File.read(js_path)].join("\n")
+    end
+
     def reset_plot
       <<~JS
         window.previousShiftX = 0
         window.previousShiftY = 0
         window.stableRange = undefined
         window.displayChunksCount = 0
+        window.selectingNode = null
         layoutProvider.graph_layout = #{layouts_by_chunk.first.to_json}
         layoutProvider.change.emit()
       JS
