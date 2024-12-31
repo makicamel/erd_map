@@ -195,8 +195,7 @@ module ErdMap
       models.each do |model|
         whole_graph.add_node(model.name)
         [:has_many, :has_one, :belongs_to].each do |association_type|
-          model.reflect_on_all_associations(association_type).each do |target_association|
-            target = target_association.name.to_s.singularize.camelize
+          model.reflect_on_all_associations(association_type).map(&:class_name).uniq.map do |target|
             if association_type == :belongs_to
               whole_graph.add_edge(target, model.name)
             else
