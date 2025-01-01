@@ -150,17 +150,18 @@ module ErdMap
           },
           code: hover_handler
         ))
-        tap_tool.callback = bokeh_models.CustomJS.new(
+        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", bokeh_models.CustomJS.new(
           args: {
             graphRenderer: graph_renderer,
             layoutProvider: layout_provider,
             layoutsByChunkData: layouts_by_chunk.to_json,
+            chunkedNodesData: chunked_nodes.to_json,
             connectionsData: connections.to_json,
             VISIBLE: VISIBLE,
             TRANSLUCENT: TRANSLUCENT,
           },
           code: tap_display_toggle
-        )
+        ))
       end
     end
 
