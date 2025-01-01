@@ -172,12 +172,12 @@ module ErdMap
 
     def zoom_handler
       js_path = __dir__ + "/zoom_handler.js"
-      File.read(js_path)
+      [util_js, File.read(js_path)].join("\n")
     end
 
     def hover_handler
       js_path = __dir__ + "/hover_handler.js"
-      File.read(js_path)
+      [util_js, File.read(js_path)].join("\n")
     end
 
     def reset_plot
@@ -189,6 +189,12 @@ module ErdMap
         layoutProvider.graph_layout = #{layouts_by_chunk.first.to_json}
         layoutProvider.change.emit()
       JS
+    end
+
+    def util_js
+      return @util_js if @util_js
+      js_path = __dir__ + "/util.js"
+      @util_js = File.read(js_path)
     end
 
     def whole_graph
