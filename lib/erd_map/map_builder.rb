@@ -105,12 +105,26 @@ module ErdMap
           code: save_mouse_position
         ))
         plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
-          args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
-          code: change_visibility_with_zoom
+          args: {
+            graphRenderer: graph_renderer,
+            layoutProvider: layout_provider,
+            layoutsByChunkData: layouts_by_chunk.to_json,
+            chunkedNodesData: chunked_nodes.to_json,
+            VISIBLE: VISIBLE,
+            TRANSLUCENT: TRANSLUCENT,
+          },
+          code: zoom_handler
         ))
         plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
-          args: { graphRenderer: graph_renderer, layoutProvider: layout_provider },
-          code: change_visibility_with_zoom
+          args: {
+            graphRenderer: graph_renderer,
+            layoutProvider: layout_provider,
+            layoutsByChunkData: layouts_by_chunk.to_json,
+            chunkedNodesData: chunked_nodes.to_json,
+            VISIBLE: VISIBLE,
+            TRANSLUCENT: TRANSLUCENT,
+          },
+          code: zoom_handler
         ))
         plot.js_on_event("reset", bokeh_models.CustomJS.new(
           args: { layoutProvider: layout_provider, selectedLayout: layouts_by_chunk.first },
@@ -156,14 +170,9 @@ module ErdMap
       JS
     end
 
-    def change_visibility_with_zoom
-      js_path = __dir__ + "/visibility_changer.js.erb"
-      ERB.new(File.read(js_path)).result_with_hash({
-        layouts_by_chunk: layouts_by_chunk,
-        chunked_nodes: chunked_nodes,
-        visible: VISIBLE,
-        translucent: TRANSLUCENT,
-      })
+    def zoom_handler
+      js_path = __dir__ + "/zoom_handler.js"
+      File.read(js_path)
     end
 
     def hover_handler
