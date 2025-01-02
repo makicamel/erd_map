@@ -108,26 +108,12 @@ module ErdMap
           code: save_mouse_position
         ))
         plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
-          args: {
-            graphRenderer: graph_renderer,
-            layoutProvider: layout_provider,
-            layoutsByChunkData: layouts_by_chunk.to_json,
-            chunkedNodesData: chunked_nodes.to_json,
-            VISIBLE: VISIBLE,
-            TRANSLUCENT: TRANSLUCENT,
-          },
-          code: zoom_handler
+          args: js_args(graph_renderer, layout_provider),
+          code: trigger_zoom
         ))
         plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
-          args: {
-            graphRenderer: graph_renderer,
-            layoutProvider: layout_provider,
-            layoutsByChunkData: layouts_by_chunk.to_json,
-            chunkedNodesData: chunked_nodes.to_json,
-            VISIBLE: VISIBLE,
-            TRANSLUCENT: TRANSLUCENT,
-          },
-          code: zoom_handler
+          args: js_args(graph_renderer, layout_provider),
+          code: trigger_zoom
         ))
         plot.js_on_event("reset", bokeh_models.CustomJS.new(
           args: { layoutProvider: layout_provider, selectedLayout: layouts_by_chunk.first },
@@ -165,19 +151,16 @@ module ErdMap
       JS
     end
 
-    def zoom_handler
-      js_path = __dir__ + "/zoom_handler.js"
-      [util_js, File.read(js_path)].join("\n")
+    def trigger_zoom
+      [graph_manager, "graphManager.triggerZoom()"].join("\n")
     end
 
     def toggle_hovered
-      js_path = __dir__ + "/graph_manager.js"
-      [File.read(js_path), "graphManager.toggleHovered()"].join("\n")
+      [graph_manager, "graphManager.toggleHovered()"].join("\n")
     end
 
     def toggle_tapped
-      js_path = __dir__ + "/graph_manager.js"
-      [File.read(js_path), "graphManager.toggleTapped()"].join("\n")
+      [graph_manager, "graphManager.toggleTapped()"].join("\n")
     end
 
     def reset_plot
@@ -214,10 +197,10 @@ module ErdMap
       }
     end
 
-    def util_js
-      return @util_js if @util_js
-      js_path = __dir__ + "/util.js"
-      @util_js = File.read(js_path)
+    def graph_manager
+      return @graph_manager if @graph_manager
+      js_path = __dir__ + "/graph_manager.js"
+      @graph_manager = File.read(js_path)
     end
 
     def whole_graph
