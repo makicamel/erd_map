@@ -139,16 +139,8 @@ module ErdMap
           hash[b] << a
         end
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
-          args: {
-            graphRenderer: graph_renderer,
-            connectionsData: connections.to_json,
-            layoutsByChunkData: layouts_by_chunk.to_json,
-            BASIC_COLOR: BASIC_COLOR,
-            HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
-            BASIC_SIZE: BASIC_SIZE,
-            EMPTHASIS_SIZE: EMPTHASIS_SIZE,
-          },
-          code: hover_handler
+          args: js_args(graph_renderer),
+          code: toggle_hovered
         ))
         graph_renderer.node_renderer.data_source.selected.js_on_change("indices", bokeh_models.CustomJS.new(
           args: {
@@ -190,9 +182,9 @@ module ErdMap
       [util_js, File.read(js_path)].join("\n")
     end
 
-    def hover_handler
-      js_path = __dir__ + "/hover_handler.js"
-      [util_js, File.read(js_path)].join("\n")
+    def toggle_hovered
+      js_path = __dir__ + "/graph_manager.js"
+      [File.read(js_path), "graphManager.toggleHovered()"].join("\n")
     end
 
     def tap_display_toggle
@@ -210,6 +202,24 @@ module ErdMap
         layoutProvider.graph_layout = #{layouts_by_chunk.first.to_json}
         layoutProvider.change.emit()
       JS
+    end
+
+    def js_args(graph_renderer)
+      return @js_args if @js_args
+
+      connections = PyCall::List.new(whole_graph.edges).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(a, b), hash|
+        hash[a] << b
+        hash[b] << a
+      end
+      @js_args = {
+        graphRenderer: graph_renderer,
+        connectionsData: connections.to_json,
+        layoutsByChunkData: layouts_by_chunk.to_json,
+        BASIC_COLOR: BASIC_COLOR,
+        HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
+        BASIC_SIZE: BASIC_SIZE,
+        EMPTHASIS_SIZE: EMPTHASIS_SIZE,
+      }
     end
 
     def util_js
