@@ -107,27 +107,11 @@ module ErdMap
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
         ))
-        plot.x_range.js_on_change("start", bokeh_models.CustomJS.new(
-          args: js_args(graph_renderer, layout_provider),
-          code: trigger_zoom
-        ))
-        plot.x_range.js_on_change("end", bokeh_models.CustomJS.new(
-          args: js_args(graph_renderer, layout_provider),
-          code: trigger_zoom
-        ))
-        plot.js_on_event("reset", bokeh_models.CustomJS.new(
-          args: js_args(graph_renderer, layout_provider),
-          code: reset_plot
-        ))
-
-        plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
-          args: js_args(graph_renderer, layout_provider),
-          code: toggle_hovered,
-        ))
-        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", bokeh_models.CustomJS.new(
-          args: js_args(graph_renderer, layout_provider),
-          code: toggle_tapped,
-        ))
+        plot.x_range.js_on_change("start", custom_js("triggerZoom", graph_renderer, layout_provider))
+        plot.x_range.js_on_change("end", custom_js("triggerZoom", graph_renderer, layout_provider))
+        plot.js_on_event("reset", custom_js("resetPlot", graph_renderer, layout_provider))
+        plot.js_on_event("mousemove", custom_js("toggleHovered", graph_renderer, layout_provider))
+        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", graph_renderer, layout_provider))
       end
     end
 
@@ -151,20 +135,11 @@ module ErdMap
       JS
     end
 
-    def trigger_zoom
-      [graph_manager, "graphManager.triggerZoom()"].join("\n")
-    end
-
-    def toggle_hovered
-      [graph_manager, "graphManager.toggleHovered()"].join("\n")
-    end
-
-    def toggle_tapped
-      [graph_manager, "graphManager.toggleTapped()"].join("\n")
-    end
-
-    def reset_plot
-      [graph_manager, "graphManager.resetPlot()"].join("\n")
+    def custom_js(function_name, graph_renderer, layout_provider)
+      bokeh_models.CustomJS.new(
+        args: js_args(graph_renderer, layout_provider),
+        code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
+      )
     end
 
     def js_args(graph_renderer, layout_provider)
