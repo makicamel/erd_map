@@ -116,7 +116,7 @@ module ErdMap
           code: trigger_zoom
         ))
         plot.js_on_event("reset", bokeh_models.CustomJS.new(
-          args: { layoutProvider: layout_provider, selectedLayout: layouts_by_chunk.first },
+          args: js_args(graph_renderer, layout_provider),
           code: reset_plot
         ))
 
@@ -164,15 +164,7 @@ module ErdMap
     end
 
     def reset_plot
-      <<~JS
-        window.previousShiftX = 0
-        window.previousShiftY = 0
-        window.stableRange = undefined
-        window.displayChunksCount = 0
-        window.selectingNode = null
-        layoutProvider.graph_layout = #{layouts_by_chunk.first.to_json}
-        layoutProvider.change.emit()
-      JS
+      [graph_manager, "graphManager.resetPlot()"].join("\n")
     end
 
     def js_args(graph_renderer, layout_provider)
