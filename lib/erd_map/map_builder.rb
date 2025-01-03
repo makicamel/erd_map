@@ -5,7 +5,10 @@ module ErdMap
     CHUNK_SIZE = 3
     VISIBLE = 1.0
     TRANSLUCENT = 0.01
-    HIGHLIGHT_COLOR = "black"
+    HIGHLIGHT_NODE_COLOR = "black"
+    HIGHLIGHT_EDGE_COLOR = "orange"
+    HIGHLIGHT_TEXT_COLOR = "white"
+    BASIC_TEXT_COLOR = "black"
     BASIC_SIZE = 40
     EMPTHASIS_SIZE = 60
     MAX_COMMUNITY_SIZE = 20
@@ -50,6 +53,8 @@ module ErdMap
             radius: node_names.map { BASIC_SIZE },
             fill_color: node_colors,
             original_color: node_colors,
+            text_color: node_names.map { BASIC_TEXT_COLOR },
+            text_outline_color: node_names.map { nil },
           }
         )
         renderer.node_renderer.glyph = bokeh_models.Circle.new(
@@ -86,7 +91,8 @@ module ErdMap
         text: "index",
         source: graph_renderer.node_renderer.data_source,
         text_font_size: "12pt",
-        text_color: "white",
+        text_color: { field: "text_color" },
+        text_outline_color: { field: "text_outline_color" },
         text_align: "center",
         text_baseline: "middle",
         text_alpha: { field: "alpha" },
@@ -164,7 +170,10 @@ module ErdMap
         chunkedNodesData: chunked_nodes.to_json,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
-        HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
+        HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
+        HIGHLIGHT_EDGE_COLOR: HIGHLIGHT_EDGE_COLOR,
+        HIGHLIGHT_TEXT_COLOR: HIGHLIGHT_TEXT_COLOR,
+        BASIC_TEXT_COLOR: BASIC_TEXT_COLOR,
         BASIC_SIZE: BASIC_SIZE,
         EMPTHASIS_SIZE: EMPTHASIS_SIZE,
       }
