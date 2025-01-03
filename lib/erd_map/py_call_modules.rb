@@ -10,10 +10,18 @@ module ErdMap
       @bokeh_models = PyCall.import_module("bokeh.models")
       @bokeh_plotting = PyCall.import_module("bokeh.plotting")
       @bokeh_palettes = PyCall.import_module("bokeh.palettes")
+      @networkx_community = PyCall.import_module("networkx.algorithms.community")
     end
 
     def imported_modules
-      [@nx, @bokeh_io, @bokeh_models, @bokeh_plotting, @bokeh_palettes]
+      {
+        nx: @nx,
+        bokeh_io: @bokeh_io,
+        bokeh_models: @bokeh_models,
+        bokeh_plotting: @bokeh_plotting,
+        bokeh_palettes: @bokeh_palettes,
+        networkx_community: @networkx_community,
+      }
     end
   end
 end

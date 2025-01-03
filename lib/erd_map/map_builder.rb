@@ -5,8 +5,7 @@ module ErdMap
     CHUNK_SIZE = 3
     VISIBLE = 1.0
     TRANSLUCENT = 0.01
-    BASIC_COLOR = "skyblue"
-    HIGHLIGHT_COLOR = "orange"
+    HIGHLIGHT_COLOR = "black"
     BASIC_SIZE = 40
     EMPTHASIS_SIZE = 60
 
@@ -17,10 +16,16 @@ module ErdMap
 
     private
 
-    attr_reader :nx, :bokeh_io, :bokeh_models, :bokeh_plotting
+    attr_reader :nx, :bokeh_io, :bokeh_models, :bokeh_plotting, :bokeh_palettes, :networkx_community
 
     def import_modules
-      @nx, @bokeh_io, @bokeh_models, @bokeh_plotting, @bokeh_palettes = ErdMap.py_call_modules.imported_modules
+      import_modules = ErdMap.py_call_modules.imported_modules
+      @nx = import_modules[:nx]
+      @bokeh_io = import_modules[:bokeh_io]
+      @bokeh_models = import_modules[:bokeh_models]
+      @bokeh_plotting = import_modules[:bokeh_plotting]
+      @bokeh_palettes = import_modules[:bokeh_palettes]
+      @networkx_community = import_modules[:networkx_community]
     end
 
     def build_plot
@@ -42,7 +47,8 @@ module ErdMap
             x: nodes_x,
             y: nodes_y,
             radius: node_names.map { BASIC_SIZE },
-            fill_color: node_names.map { BASIC_COLOR },
+            fill_color: node_colors,
+            original_color: node_colors,
           }
         )
         renderer.node_renderer.glyph = bokeh_models.Circle.new(
@@ -79,7 +85,7 @@ module ErdMap
         text: "index",
         source: graph_renderer.node_renderer.data_source,
         text_font_size: "12pt",
-        text_color: "black",
+        text_color: "white",
         text_align: "center",
         text_baseline: "middle",
         text_alpha: { field: "alpha" },
@@ -157,7 +163,6 @@ module ErdMap
         chunkedNodesData: chunked_nodes.to_json,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
-        BASIC_COLOR: BASIC_COLOR,
         HIGHLIGHT_COLOR: HIGHLIGHT_COLOR,
         BASIC_SIZE: BASIC_SIZE,
         EMPTHASIS_SIZE: EMPTHASIS_SIZE,
@@ -250,6 +255,32 @@ module ErdMap
         chunk.each { |node_name| @nodes_with_chunk_index[node_name] = i }
       end
       @nodes_with_chunk_index
+    end
+
+    def node_colors
+      return @node_colors if @node_colors
+
+      palette_size = 23 # Max size of TolRainbow
+      palette = bokeh_palettes.TolRainbow[palette_size]
+      node_names = PyCall::List.new(whole_graph.nodes)
+      community_map = node_with_community_index
+      @node_colors = node_names.map do |node_name|
+        community_index = community_map[node_name]
+        palette[community_index % palette_size]
+      end
+    end
+
+    # @return Hash: { String: Integer }
+    def node_with_community_index
+      communities = networkx_community.louvain_communities(whole_graph)
+
+      node_with_community_index = {}
+      communities.each_with_index do |community, i|
+        PyCall::List.new(community).each do |node_name|
+          node_with_community_index[node_name] = i
+        end
+      end
+      node_with_community_index
     end
 
     class << self
