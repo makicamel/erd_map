@@ -37,7 +37,7 @@ module ErdMap
       initial_layout = layouts_by_chunk.first
 
       node_names = PyCall::List.new(whole_graph.nodes)
-      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : [0.0, 0.0] }.transpose
+      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
 
       graph_layout = node_names.zip(nodes_x, nodes_y).map { |node, x, y| [node, [x, y]] }.to_h
       layout_provider = bokeh_models.StaticLayoutProvider.new(graph_layout: graph_layout)
