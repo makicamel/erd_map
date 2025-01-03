@@ -8,7 +8,7 @@ module ErdMap
     HIGHLIGHT_NODE_COLOR = "black"
     HIGHLIGHT_EDGE_COLOR = "orange"
     HIGHLIGHT_TEXT_COLOR = "white"
-    BASIC_TEXT_COLOR = "black"
+    BASIC_COLOR = "darkslategray"
     BASIC_SIZE = 40
     EMPTHASIS_SIZE = 60
     MAX_COMMUNITY_SIZE = 20
@@ -53,7 +53,7 @@ module ErdMap
             radius: node_names.map { BASIC_SIZE },
             fill_color: node_colors,
             original_color: node_colors,
-            text_color: node_names.map { BASIC_TEXT_COLOR },
+            text_color: node_names.map { BASIC_COLOR },
             text_outline_color: node_names.map { nil },
           }
         )
@@ -75,7 +75,7 @@ module ErdMap
             start: edge_start,
             end: edge_end,
             alpha: edges_alpha,
-            line_color: edges.map { "gray" },
+            line_color: edges.map { BASIC_COLOR },
           }
         )
         renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
@@ -173,7 +173,7 @@ module ErdMap
         HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
         HIGHLIGHT_EDGE_COLOR: HIGHLIGHT_EDGE_COLOR,
         HIGHLIGHT_TEXT_COLOR: HIGHLIGHT_TEXT_COLOR,
-        BASIC_TEXT_COLOR: BASIC_TEXT_COLOR,
+        BASIC_COLOR: BASIC_COLOR,
         BASIC_SIZE: BASIC_SIZE,
         EMPTHASIS_SIZE: EMPTHASIS_SIZE,
       }
