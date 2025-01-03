@@ -8,6 +8,7 @@ module ErdMap
     HIGHLIGHT_COLOR = "black"
     BASIC_SIZE = 40
     EMPTHASIS_SIZE = 60
+    MAX_COMMUNITY_SIZE = 20
 
     def execute
       import_modules
@@ -272,15 +273,37 @@ module ErdMap
 
     # @return Hash: { String: Integer }
     def node_with_community_index
-      communities = networkx_community.louvain_communities(whole_graph)
+      whole_communities = networkx_community.louvain_communities(whole_graph).map { |communities| PyCall::List.new(communities).to_a }
+      communities = split_communities(whole_graph, whole_communities)
 
       node_with_community_index = {}
       communities.each_with_index do |community, i|
-        PyCall::List.new(community).each do |node_name|
+        community.each do |node_name|
           node_with_community_index[node_name] = i
         end
       end
       node_with_community_index
+    end
+
+    def split_communities(graph, communities)
+      result = []
+
+      communities.each do |community|
+        if community.size <= MAX_COMMUNITY_SIZE
+          result << community
+        else
+          subgraph = graph.subgraph(community)
+          sub_communities = networkx_community.louvain_communities(subgraph).map { |comm| PyCall::List.new(comm).to_a }
+          if sub_communities.size == 1 && (sub_communities[0] - community).empty?
+            result << community
+          else
+            splitted_sub = split_communities(subgraph, sub_communities)
+            result.concat(splitted_sub)
+          end
+        end
+      end
+
+      result
     end
 
     class << self
