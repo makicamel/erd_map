@@ -14,4 +14,3 @@ module ErdMapTestApp
     config.secret_key_base = "erdmap"
   end
 end
-
