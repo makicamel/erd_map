@@ -15,7 +15,7 @@ module ErdMap
 
     def execute
       import_modules
-      save(build_plot)
+      save(build_layout)
     end
 
     private
@@ -32,7 +32,7 @@ module ErdMap
       @networkx_community = import_modules[:networkx_community]
     end
 
-    def build_plot
+    def build_layout
       initial_nodes = chunked_nodes.first
       initial_layout = layouts_by_chunk.first
 
@@ -102,7 +102,7 @@ module ErdMap
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
-      bokeh_models.Plot.new(
+      plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
         y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
@@ -126,15 +126,35 @@ module ErdMap
         plot.js_on_event("mousemove", custom_js("toggleHovered", graph_renderer, layout_provider))
         graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", graph_renderer, layout_provider))
       end
+
+      left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
+      right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
+      zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
+        button.js_on_click(custom_js("zoomIn", graph_renderer, layout_provider))
+      end
+      zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
+        button.js_on_click(custom_js("zoomOut", graph_renderer, layout_provider))
+      end
+
+      bokeh_models.Column.new(
+        children: [
+          bokeh_models.Row.new(
+            children: [left_spacer, zoom_in_button, zoom_out_button, right_spacer],
+            sizing_mode: "stretch_width"
+          ),
+          plot,
+        ],
+        sizing_mode: "stretch_both"
+      )
     end
 
-    def save(plot)
+    def save(layout)
       tmp_dir = Rails.root.join("tmp", "erd_map")
       FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
       output_path = File.join(tmp_dir, "result.html")
 
       bokeh_io.output_file(output_path)
-      bokeh_io.save(plot)
+      bokeh_io.save(layout)
       puts output_path
     end
 
