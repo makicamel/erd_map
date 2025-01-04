@@ -167,9 +167,7 @@ module ErdMap
     end
 
     def graph_manager
-      return @graph_manager if @graph_manager
-      js_path = __dir__ + "/graph_manager.js"
-      @graph_manager = File.read(js_path)
+      @graph_manager ||= File.read(__dir__ + "/graph_manager.js")
     end
 
     def whole_graph
