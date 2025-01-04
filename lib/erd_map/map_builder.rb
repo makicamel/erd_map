@@ -9,8 +9,7 @@ module ErdMap
     HIGHLIGHT_EDGE_COLOR = "orange"
     HIGHLIGHT_TEXT_COLOR = "white"
     BASIC_COLOR = "darkslategray"
-    BASIC_SIZE = 40
-    EMPTHASIS_SIZE = 60
+    EMPTHASIS_NODE_SIZE = 80
     MAX_COMMUNITY_SIZE = 20
 
     def execute
@@ -153,8 +152,7 @@ module ErdMap
         HIGHLIGHT_EDGE_COLOR: HIGHLIGHT_EDGE_COLOR,
         HIGHLIGHT_TEXT_COLOR: HIGHLIGHT_TEXT_COLOR,
         BASIC_COLOR: BASIC_COLOR,
-        BASIC_SIZE: BASIC_SIZE,
-        EMPTHASIS_SIZE: EMPTHASIS_SIZE,
+        EMPTHASIS_NODE_SIZE: EMPTHASIS_NODE_SIZE,
       }
     end
 
@@ -252,6 +250,23 @@ module ErdMap
       @nodes_with_chunk_index
     end
 
+    def nodes_with_size_according_to_chunk_index
+      return @nodes_with_size_according_to_chunk_index if @nodes_with_size_according_to_chunk_index
+
+      max_node_size = 60
+      min_node_size = 20
+      node_size_step = 10
+
+      @nodes_with_size_according_to_chunk_index = {}
+      chunked_nodes.each_with_index do |chunk, chunk_index|
+        chunk.each do |node_name|
+          size = max_node_size - (chunk_index * node_size_step)
+          @nodes_with_size_according_to_chunk_index[node_name] = (size < min_node_size) ? min_node_size : size
+        end
+      end
+      @nodes_with_size_according_to_chunk_index
+    end
+
     def graph_renderer
       return @graph_renderer if @graph_renderer
 
@@ -268,7 +283,8 @@ module ErdMap
             alpha: nodes_alpha,
             x: nodes_x,
             y: nodes_y,
-            radius: node_names.map { BASIC_SIZE },
+            radius: node_names.map { |node_name| nodes_with_size_according_to_chunk_index[node_name] },
+            original_radius: node_names.map { |node_name| nodes_with_size_according_to_chunk_index[node_name] },
             fill_color: node_colors,
             original_color: node_colors,
             text_color: node_names.map { BASIC_COLOR },
