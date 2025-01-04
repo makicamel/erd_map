@@ -90,7 +90,14 @@ module ErdMap
       bokeh_models.Column.new(
         children: [
           bokeh_models.Row.new(
-            children: [left_spacer, zoom_in_button, zoom_out_button, toggle_zoom_mode_button, right_spacer],
+            children: [
+              left_spacer,
+              selecting_node_label,
+              toggle_zoom_mode_button,
+              zoom_in_button,
+              zoom_out_button,
+              right_spacer,
+            ],
             sizing_mode: "stretch_width",
           ),
           plot,
@@ -139,6 +146,7 @@ module ErdMap
         connectionsData: connections.to_json,
         layoutsByChunkData: layouts_by_chunk.to_json,
         chunkedNodesData: chunked_nodes.to_json,
+        selectingNodeLabel: selecting_node_label,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
         HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
@@ -148,6 +156,14 @@ module ErdMap
         BASIC_SIZE: BASIC_SIZE,
         EMPTHASIS_SIZE: EMPTHASIS_SIZE,
       }
+    end
+
+    def selecting_node_label
+      @selecting_node_label ||= bokeh_models.Div.new(
+        text: "",
+        height: 28,
+        styles: { display: :flex, align_items: :center }
+      )
     end
 
     def graph_manager
