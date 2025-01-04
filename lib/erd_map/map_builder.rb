@@ -102,6 +102,10 @@ module ErdMap
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
+      toggle_zoom_mode_button = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
+        button.js_on_click(custom_js("toggleZoomMode", graph_renderer, layout_provider, button))
+      end
+
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
@@ -124,7 +128,7 @@ module ErdMap
         plot.x_range.js_on_change("end", custom_js("triggerZoom", graph_renderer, layout_provider))
         plot.js_on_event("reset", custom_js("resetPlot", graph_renderer, layout_provider))
         plot.js_on_event("mousemove", custom_js("toggleHovered", graph_renderer, layout_provider))
-        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", graph_renderer, layout_provider))
+        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", graph_renderer, layout_provider, toggle_zoom_mode_button))
       end
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
@@ -139,7 +143,7 @@ module ErdMap
       bokeh_models.Column.new(
         children: [
           bokeh_models.Row.new(
-            children: [left_spacer, zoom_in_button, zoom_out_button, right_spacer],
+            children: [left_spacer, zoom_in_button, zoom_out_button, toggle_zoom_mode_button, right_spacer],
             sizing_mode: "stretch_width"
           ),
           plot,
@@ -168,9 +172,9 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, graph_renderer, layout_provider)
+    def custom_js(function_name, graph_renderer, layout_provider, toggle_zoom_mode_button = nil)
       bokeh_models.CustomJS.new(
-        args: js_args(graph_renderer, layout_provider),
+        args: js_args(graph_renderer, layout_provider).merge(toggleZoomButton: toggle_zoom_mode_button),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
     end
