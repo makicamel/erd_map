@@ -57,7 +57,6 @@ module ErdMap
         y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
         tools: [
           wheel_zoom_tool = bokeh_models.WheelZoomTool.new,
-          bokeh_models.BoxZoomTool.new,
           bokeh_models.ResetTool.new,
           bokeh_models.PanTool.new,
           tap_tool = bokeh_models.TapTool.new,
