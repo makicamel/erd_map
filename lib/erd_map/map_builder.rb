@@ -75,16 +75,16 @@ module ErdMap
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
-      zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
-        button.js_on_click(custom_js("zoomIn"))
-      end
-      zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
-        button.js_on_click(custom_js("zoomOut"))
-      end
-      toggle_zoom_mode_button = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
+      zoom_mode_toggle = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
         button.js_on_click(custom_js("toggleZoomMode", button))
       end
-      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", toggle_zoom_mode_button))
+      zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
+        button.js_on_click(custom_js("zoomIn", zoom_mode_toggle))
+      end
+      zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
+        button.js_on_click(custom_js("zoomOut", zoom_mode_toggle))
+      end
+      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", zoom_mode_toggle))
 
       bokeh_models.Column.new(
         children: [
@@ -92,7 +92,7 @@ module ErdMap
             children: [
               left_spacer,
               selecting_node_label,
-              toggle_zoom_mode_button,
+              zoom_mode_toggle,
               zoom_in_button,
               zoom_out_button,
               right_spacer,
@@ -125,9 +125,9 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, toggle_zoom_mode_button = nil)
+    def custom_js(function_name, zoom_mode_toggle = nil)
       bokeh_models.CustomJS.new(
-        args: js_args.merge(toggleZoomButton: toggle_zoom_mode_button),
+        args: js_args.merge(zoomModeToggle: zoom_mode_toggle),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
     end
