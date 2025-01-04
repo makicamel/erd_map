@@ -33,58 +33,6 @@ module ErdMap
     end
 
     def build_layout
-      initial_nodes = chunked_nodes.first
-      initial_layout = layouts_by_chunk.first
-
-      node_names = PyCall::List.new(whole_graph.nodes)
-      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
-
-      graph_layout = node_names.zip(nodes_x, nodes_y).map { |node, x, y| [node, [x, y]] }.to_h
-      layout_provider = bokeh_models.StaticLayoutProvider.new(graph_layout: graph_layout)
-
-      graph_renderer = bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
-        nodes_alpha = node_names.map { |node| initial_nodes.include?(node) ? VISIBLE : TRANSLUCENT }
-        renderer.node_renderer.data_source = bokeh_models.ColumnDataSource.new(
-          data: {
-            index: node_names,
-            alpha: nodes_alpha,
-            x: nodes_x,
-            y: nodes_y,
-            radius: node_names.map { BASIC_SIZE },
-            fill_color: node_colors,
-            original_color: node_colors,
-            text_color: node_names.map { BASIC_COLOR },
-            text_outline_color: node_names.map { nil },
-          }
-        )
-        renderer.node_renderer.glyph = bokeh_models.Circle.new(
-          radius: "radius",
-          radius_units: "screen",
-          fill_color: { field: "fill_color" },
-          fill_alpha: { field: "alpha" },
-          line_alpha: { field: "alpha" },
-        )
-        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
-        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
-
-        edges = PyCall::List.new(whole_graph.edges)
-        edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
-        edges_alpha = edges.map { |edge| initial_nodes.include?(edge[0]) && initial_nodes.include?(edge[1]) ? VISIBLE : TRANSLUCENT }
-        renderer.edge_renderer.data_source = bokeh_models.ColumnDataSource.new(
-          data: {
-            start: edge_start,
-            end: edge_end,
-            alpha: edges_alpha,
-            line_color: edges.map { BASIC_COLOR },
-          }
-        )
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: { field: "line_color" },
-          line_alpha: { field: "alpha" },
-          line_width: 1,
-        )
-      end
-
       labels = bokeh_models.LabelSet.new(
         x: "x",
         y: "y",
@@ -99,12 +47,9 @@ module ErdMap
       )
 
       padding_ratio = 0.1
+      initial_layout = layouts_by_chunk.first
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
-
-      toggle_zoom_mode_button = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
-        button.js_on_click(custom_js("toggleZoomMode", graph_renderer, layout_provider, button))
-      end
 
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
@@ -121,34 +66,37 @@ module ErdMap
         plot.toolbar.active_scroll = wheel_zoom_tool
         plot.renderers.append(graph_renderer)
         plot.add_layout(labels)
+        plot.x_range.js_on_change("start", custom_js("triggerZoom"))
+        plot.x_range.js_on_change("end", custom_js("triggerZoom"))
+        plot.js_on_event("mousemove", custom_js("toggleHovered"))
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
-        ))
-        plot.x_range.js_on_change("start", custom_js("triggerZoom", graph_renderer, layout_provider))
-        plot.x_range.js_on_change("end", custom_js("triggerZoom", graph_renderer, layout_provider))
-        plot.js_on_event("reset", custom_js("resetPlot", graph_renderer, layout_provider))
-        plot.js_on_event("mousemove", custom_js("toggleHovered", graph_renderer, layout_provider))
-        graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", graph_renderer, layout_provider, toggle_zoom_mode_button))
+          ))
+        plot.js_on_event("reset", custom_js("resetPlot"))
       end
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
       zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
-        button.js_on_click(custom_js("zoomIn", graph_renderer, layout_provider))
+        button.js_on_click(custom_js("zoomIn"))
       end
       zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
-        button.js_on_click(custom_js("zoomOut", graph_renderer, layout_provider))
+        button.js_on_click(custom_js("zoomOut"))
       end
+      toggle_zoom_mode_button = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
+        button.js_on_click(custom_js("toggleZoomMode", button))
+      end
+      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", toggle_zoom_mode_button))
 
       bokeh_models.Column.new(
         children: [
           bokeh_models.Row.new(
             children: [left_spacer, zoom_in_button, zoom_out_button, toggle_zoom_mode_button, right_spacer],
-            sizing_mode: "stretch_width"
+            sizing_mode: "stretch_width",
           ),
           plot,
         ],
-        sizing_mode: "stretch_both"
+        sizing_mode: "stretch_both",
       )
     end
 
@@ -172,14 +120,14 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, graph_renderer, layout_provider, toggle_zoom_mode_button = nil)
+    def custom_js(function_name, toggle_zoom_mode_button = nil)
       bokeh_models.CustomJS.new(
-        args: js_args(graph_renderer, layout_provider).merge(toggleZoomButton: toggle_zoom_mode_button),
+        args: js_args.merge(toggleZoomButton: toggle_zoom_mode_button),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
     end
 
-    def js_args(graph_renderer, layout_provider)
+    def js_args
       return @js_args if @js_args
 
       connections = PyCall::List.new(whole_graph.edges).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(a, b), hash|
@@ -289,6 +237,68 @@ module ErdMap
         chunk.each { |node_name| @nodes_with_chunk_index[node_name] = i }
       end
       @nodes_with_chunk_index
+    end
+
+    def graph_renderer
+      return @graph_renderer if @graph_renderer
+
+      initial_layout = layouts_by_chunk.first
+      initial_nodes = chunked_nodes.first
+      node_names = PyCall::List.new(whole_graph.nodes)
+      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
+
+      @graph_renderer = bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
+        nodes_alpha = node_names.map { |node| initial_nodes.include?(node) ? VISIBLE : TRANSLUCENT }
+        renderer.node_renderer.data_source = bokeh_models.ColumnDataSource.new(
+          data: {
+            index: node_names,
+            alpha: nodes_alpha,
+            x: nodes_x,
+            y: nodes_y,
+            radius: node_names.map { BASIC_SIZE },
+            fill_color: node_colors,
+            original_color: node_colors,
+            text_color: node_names.map { BASIC_COLOR },
+            text_outline_color: node_names.map { nil },
+          }
+        )
+        renderer.node_renderer.glyph = bokeh_models.Circle.new(
+          radius: "radius",
+          radius_units: "screen",
+          fill_color: { field: "fill_color" },
+          fill_alpha: { field: "alpha" },
+          line_alpha: { field: "alpha" },
+        )
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
+
+        edges = PyCall::List.new(whole_graph.edges)
+        edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
+        edges_alpha = edges.map { |edge| initial_nodes.include?(edge[0]) && initial_nodes.include?(edge[1]) ? VISIBLE : TRANSLUCENT }
+        renderer.edge_renderer.data_source = bokeh_models.ColumnDataSource.new(
+          data: {
+            start: edge_start,
+            end: edge_end,
+            alpha: edges_alpha,
+            line_color: edges.map { BASIC_COLOR },
+          }
+        )
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: { field: "line_color" },
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
+    end
+
+    def layout_provider
+      return @layout_provider if @layout_provider
+
+      initial_layout = layouts_by_chunk.first
+      node_names = PyCall::List.new(whole_graph.nodes)
+      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
+      graph_layout = node_names.zip(nodes_x, nodes_y).map { |node, x, y| [node, [x, y]] }.to_h
+      @layout_provider = bokeh_models.StaticLayoutProvider.new(graph_layout: graph_layout)
     end
 
     def node_colors
