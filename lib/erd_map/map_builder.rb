@@ -19,7 +19,7 @@ module ErdMap
 
     private
 
-    attr_reader :nx, :bokeh_io, :bokeh_models, :bokeh_plotting, :bokeh_palettes, :networkx_community
+    attr_reader :nx, :bokeh_io, :bokeh_models, :bokeh_plotting, :networkx_community
 
     def import_modules
       import_modules = ErdMap.py_call_modules.imported_modules
@@ -27,7 +27,6 @@ module ErdMap
       @bokeh_io = import_modules[:bokeh_io]
       @bokeh_models = import_modules[:bokeh_models]
       @bokeh_plotting = import_modules[:bokeh_plotting]
-      @bokeh_palettes = import_modules[:bokeh_palettes]
       @networkx_community = import_modules[:networkx_community]
     end
 
@@ -334,13 +333,19 @@ module ErdMap
     def node_colors
       return @node_colors if @node_colors
 
-      palette_size = 23 # Max size of TolRainbow
-      palette = bokeh_palettes.TolRainbow[palette_size]
+      palette = [
+        "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99",
+        "#e74446", "#fdbf6f", "#ff7f00", "#cab2d6", "#7850a4",
+        "#ffff99", "#b8693d", "#8dd3c7", "#ffffb3", "#bebada",
+        "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5",
+        "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f", "#1b9e77",
+        "#d95f02", "#7570b3", "#ef73b2", "#66a61e", "#e6ab02"
+      ]
       node_names = PyCall::List.new(whole_graph.nodes)
       community_map = node_with_community_index
       @node_colors = node_names.map do |node_name|
         community_index = community_map[node_name]
-        palette[community_index % palette_size]
+        palette[community_index % palette.size]
       end
     end
 
