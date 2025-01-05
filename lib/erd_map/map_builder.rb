@@ -50,6 +50,10 @@ module ErdMap
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
+      zoom_mode_toggle = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
+        button.js_on_click(custom_js("toggleZoomMode", button))
+      end
+
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
@@ -70,14 +74,11 @@ module ErdMap
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
           ))
-        plot.js_on_event("reset", custom_js("resetPlot"))
+        plot.js_on_event("reset", custom_js("resetPlot", zoom_mode_toggle))
       end
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
-      zoom_mode_toggle = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
-        button.js_on_click(custom_js("toggleZoomMode", button))
-      end
       zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
         button.js_on_click(custom_js("zoomIn", zoom_mode_toggle))
       end
