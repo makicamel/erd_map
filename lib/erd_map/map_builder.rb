@@ -49,8 +49,12 @@ module ErdMap
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
-      zoom_mode_toggle = bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "warning").tap do |button|
-        button.js_on_click(custom_js("toggleZoomMode", button))
+      zoom_mode_toggle = bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "default").tap do |button|
+        button.js_on_click(custom_js("toggleZoomMode", zoom_mode_toggle: button))
+      end
+
+      tap_mode_toggle = bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
+        button.js_on_click(custom_js("toggleTapMode", tap_mode_toggle: button))
       end
 
       plot = bokeh_models.Plot.new(
@@ -73,18 +77,18 @@ module ErdMap
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
           ))
-        plot.js_on_event("reset", custom_js("resetPlot", zoom_mode_toggle))
+        plot.js_on_event("reset", custom_js("resetPlot", zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle))
       end
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
       zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
-        button.js_on_click(custom_js("zoomIn", zoom_mode_toggle))
+        button.js_on_click(custom_js("zoomIn", zoom_mode_toggle: zoom_mode_toggle))
       end
       zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
-        button.js_on_click(custom_js("zoomOut", zoom_mode_toggle))
+        button.js_on_click(custom_js("zoomOut", zoom_mode_toggle: zoom_mode_toggle))
       end
-      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", zoom_mode_toggle))
+      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped", zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle))
 
       bokeh_models.Column.new(
         children: [
@@ -93,6 +97,7 @@ module ErdMap
               left_spacer,
               selecting_node_label,
               zoom_mode_toggle,
+              tap_mode_toggle,
               zoom_in_button,
               zoom_out_button,
               right_spacer,
@@ -125,9 +130,12 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, zoom_mode_toggle = nil)
+    def custom_js(function_name, zoom_mode_toggle: nil, tap_mode_toggle: nil)
       bokeh_models.CustomJS.new(
-        args: js_args.merge(zoomModeToggle: zoom_mode_toggle),
+        args: js_args.merge(
+          zoomModeToggle: zoom_mode_toggle,
+          tapModeToggle: tap_mode_toggle,
+        ),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
     end
@@ -145,6 +153,7 @@ module ErdMap
         connectionsData: connections.to_json,
         layoutsByChunkData: layouts_by_chunk.to_json,
         chunkedNodesData: chunked_nodes.to_json,
+        nodeWithCommunityIndexData: node_with_community_index.to_json,
         selectingNodeLabel: selecting_node_label,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
@@ -351,16 +360,18 @@ module ErdMap
 
     # @return Hash: { String: Integer }
     def node_with_community_index
+      return @node_with_community_index if @node_with_community_index
+
       whole_communities = networkx_community.louvain_communities(whole_graph).map { |communities| PyCall::List.new(communities).to_a }
       communities = split_communities(whole_graph, whole_communities)
 
-      node_with_community_index = {}
+      @node_with_community_index = {}
       communities.each_with_index do |community, i|
         community.each do |node_name|
-          node_with_community_index[node_name] = i
+          @node_with_community_index[node_name] = i
         end
       end
-      node_with_community_index
+      @node_with_community_index
     end
 
     def split_communities(graph, communities)
