@@ -49,7 +49,7 @@ module ErdMap
       x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
-      zoom_mode_toggle = bokeh_models.Button.new(label: "Zooming", button_type: "warning").tap do |button|
+      zoom_mode_toggle = bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "warning").tap do |button|
         button.js_on_click(custom_js("toggleZoomMode", button))
       end
 
