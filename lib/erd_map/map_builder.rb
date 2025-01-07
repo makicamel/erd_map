@@ -2,32 +2,23 @@
 
 module ErdMap
   class MapBuilder
-    CHUNK_SIZE = 3
-    VISIBLE = 1.0
-    TRANSLUCENT = 0.01
-    HIGHLIGHT_NODE_COLOR = "black"
-    HIGHLIGHT_EDGE_COLOR = "orange"
-    HIGHLIGHT_TEXT_COLOR = "white"
-    BASIC_COLOR = "darkslategray"
-    EMPTHASIS_NODE_SIZE = 80
-    MAX_COMMUNITY_SIZE = 20
-
     def execute
       import_modules
+      @graph = ErdMap::Graph.new
+      @graph_renderer = ErdMap::GraphRenderer.new(@graph)
       save(build_layout)
     end
 
     private
 
-    attr_reader :nx, :bokeh_io, :bokeh_models, :bokeh_plotting, :networkx_community
+    attr_reader :bokeh_io, :bokeh_models, :bokeh_plotting
+    attr_reader :graph, :graph_renderer
 
     def import_modules
       import_modules = ErdMap.py_call_modules.imported_modules
-      @nx = import_modules[:nx]
       @bokeh_io = import_modules[:bokeh_io]
       @bokeh_models = import_modules[:bokeh_models]
       @bokeh_plotting = import_modules[:bokeh_plotting]
-      @networkx_community = import_modules[:networkx_community]
     end
 
     def build_layout
@@ -45,8 +36,7 @@ module ErdMap
       )
 
       padding_ratio = 0.1
-      initial_layout = layouts_by_chunk.first
-      x_min, x_max, y_min, y_max = initial_layout.values.transpose.map(&:minmax).flatten
+      x_min, x_max, y_min, y_max = graph.initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
 
       zoom_mode_toggle = bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "default").tap do |button|
@@ -68,7 +58,7 @@ module ErdMap
         ],
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
-        plot.renderers.append(graph_renderer)
+        plot.renderers.append(graph_renderer.graph_renderer)
         plot.add_layout(labels)
         plot.x_range.js_on_change("start", custom_js("triggerZoom", search_box: search_box))
         plot.x_range.js_on_change("end", custom_js("triggerZoom", search_box: search_box))
@@ -94,7 +84,7 @@ module ErdMap
           bokeh_models.Row.new(
             children: [
               left_spacer,
-              selecting_node_label,
+              graph_renderer.selecting_node_label,
               search_box,
               zoom_mode_toggle,
               tap_mode_toggle,
@@ -132,45 +122,12 @@ module ErdMap
 
     def custom_js(function_name, search_box: nil, zoom_mode_toggle: nil, tap_mode_toggle: nil)
       bokeh_models.CustomJS.new(
-        args: js_args.merge(
+        args: graph_renderer.js_args.merge(
           searchBox: search_box,
           zoomModeToggle: zoom_mode_toggle,
           tapModeToggle: tap_mode_toggle,
         ),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
-      )
-    end
-
-    def js_args
-      return @js_args if @js_args
-
-      connections = PyCall::List.new(whole_graph.edges).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(a, b), hash|
-        hash[a] << b
-        hash[b] << a
-      end
-      @js_args = {
-        graphRenderer: graph_renderer,
-        layoutProvider: layout_provider,
-        connectionsData: connections.to_json,
-        layoutsByChunkData: layouts_by_chunk.to_json,
-        chunkedNodesData: chunked_nodes.to_json,
-        nodeWithCommunityIndexData: node_with_community_index.to_json,
-        selectingNodeLabel: selecting_node_label,
-        VISIBLE: VISIBLE,
-        TRANSLUCENT: TRANSLUCENT,
-        HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
-        HIGHLIGHT_EDGE_COLOR: HIGHLIGHT_EDGE_COLOR,
-        HIGHLIGHT_TEXT_COLOR: HIGHLIGHT_TEXT_COLOR,
-        BASIC_COLOR: BASIC_COLOR,
-        EMPTHASIS_NODE_SIZE: EMPTHASIS_NODE_SIZE,
-      }
-    end
-
-    def selecting_node_label
-      @selecting_node_label ||= bokeh_models.Div.new(
-        text: "",
-        height: 28,
-        styles: { display: :flex, align_items: :center }
       )
     end
 
@@ -182,224 +139,6 @@ module ErdMap
 
     def graph_manager
       @graph_manager ||= File.read(__dir__ + "/graph_manager.js")
-    end
-
-    def whole_graph
-      @whole_graph ||= build_whole_graph
-    end
-
-    def build_whole_graph
-      Rails.application.eager_load!
-      whole_graph = nx.Graph.new
-      models = ActiveRecord::Base.descendants
-        .reject { |model| model.name.in?(%w[ActiveRecord::SchemaMigration ActiveRecord::InternalMetadata]) }
-        .select(&:table_exists?)
-      models.each do |model|
-        whole_graph.add_node(model.name)
-        [:has_many, :has_one, :belongs_to].each do |association_type|
-          model.reflect_on_all_associations(association_type).select { |mod| !mod.options[:polymorphic] }.map(&:class_name).uniq.select { |target| target.constantize.respond_to?(:column_names) }.map do |target|
-            if association_type == :belongs_to
-              whole_graph.add_edge(target, model.name)
-            else
-              whole_graph.add_edge(model.name, target)
-            end
-          end
-        end
-      end
-      whole_graph
-    end
-
-    # @return Array: [{ "NodeA" => [x, y] }, { "NodeA" => [x, y], "NodeB" => [x, y], "NodeC" => [x, y] }, ...]
-    def layouts_by_chunk
-      return @layouts_by_chunk if @layouts_by_chunk
-
-      @layouts_by_chunk = []
-
-      chunked_nodes.each_with_index do |_, i|
-        display_nodes = chunked_nodes[0..i].flatten
-        nodes_size = display_nodes.size
-        k = 1.0 / Math.sqrt(nodes_size) * 3.0
-
-        subgraph = whole_graph.subgraph(display_nodes)
-        layout = nx.spring_layout(subgraph, seed: 1, k: k)
-
-        layout_hash = {}
-        layout.each do |node, xy|
-          layout_hash[node] = [xy[0].to_f, xy[1].to_f]
-        end
-
-        @layouts_by_chunk << layout_hash
-      end
-
-      @layouts_by_chunk
-    end
-
-    # [[nodeA, nodeB, nodeC], [nodeD, nodeE, nodeF, nodeG, ...], ...]
-    def chunked_nodes
-      return @chunked_nodes if @chunked_nodes
-
-      centralities = nx.eigenvector_centrality(whole_graph) # { node_name => centrality }
-      sorted_nodes = centralities.sort_by { |_node, centrality| centrality }.reverse.map(&:first)
-
-      chunk_sizes = []
-      total_nodes = sorted_nodes.size
-      while chunk_sizes.sum < total_nodes
-        chunk_sizes << (CHUNK_SIZE ** (chunk_sizes.size + 1))
-      end
-
-      offset = 0
-      @chunked_nodes = chunk_sizes.each_with_object([]) do |size, nodes|
-        slice = sorted_nodes[offset, size]
-        break nodes if slice.nil? || slice.empty?
-        offset += size
-        nodes << slice
-      end
-    end
-
-    # { "NodeA" => 0, "NodeB" => 0, "NodeC" => 1, ... }
-    def nodes_with_chunk_index
-      return @nodes_with_chunk_index if @nodes_with_chunk_index
-      @nodes_with_chunk_index = {}
-      chunked_nodes.each_with_index do |chunk, i|
-        chunk.each { |node_name| @nodes_with_chunk_index[node_name] = i }
-      end
-      @nodes_with_chunk_index
-    end
-
-    def nodes_with_size_according_to_chunk_index
-      return @nodes_with_size_according_to_chunk_index if @nodes_with_size_according_to_chunk_index
-
-      max_node_size = 60
-      min_node_size = 20
-      node_size_step = 10
-
-      @nodes_with_size_according_to_chunk_index = {}
-      chunked_nodes.each_with_index do |chunk, chunk_index|
-        chunk.each do |node_name|
-          size = max_node_size - (chunk_index * node_size_step)
-          @nodes_with_size_according_to_chunk_index[node_name] = (size < min_node_size) ? min_node_size : size
-        end
-      end
-      @nodes_with_size_according_to_chunk_index
-    end
-
-    def graph_renderer
-      return @graph_renderer if @graph_renderer
-
-      initial_layout = layouts_by_chunk.first
-      initial_nodes = chunked_nodes.first
-      node_names = PyCall::List.new(whole_graph.nodes)
-      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
-
-      @graph_renderer = bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
-        nodes_alpha = node_names.map { |node| initial_nodes.include?(node) ? VISIBLE : TRANSLUCENT }
-        renderer.node_renderer.data_source = bokeh_models.ColumnDataSource.new(
-          data: {
-            index: node_names,
-            alpha: nodes_alpha,
-            x: nodes_x,
-            y: nodes_y,
-            radius: node_names.map { |node_name| nodes_with_size_according_to_chunk_index[node_name] },
-            original_radius: node_names.map { |node_name| nodes_with_size_according_to_chunk_index[node_name] },
-            fill_color: node_colors,
-            original_color: node_colors,
-            text_color: node_names.map { BASIC_COLOR },
-            text_outline_color: node_names.map { nil },
-          }
-        )
-        renderer.node_renderer.glyph = bokeh_models.Circle.new(
-          radius: "radius",
-          radius_units: "screen",
-          fill_color: { field: "fill_color" },
-          fill_alpha: { field: "alpha" },
-          line_alpha: { field: "alpha" },
-        )
-        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
-        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
-
-        edges = PyCall::List.new(whole_graph.edges)
-        edge_start, edge_end = edges.map { |edge| [edge[0], edge[1]] }.transpose
-        edges_alpha = edges.map { |edge| initial_nodes.include?(edge[0]) && initial_nodes.include?(edge[1]) ? VISIBLE : TRANSLUCENT }
-        renderer.edge_renderer.data_source = bokeh_models.ColumnDataSource.new(
-          data: {
-            start: edge_start,
-            end: edge_end,
-            alpha: edges_alpha,
-            line_color: edges.map { BASIC_COLOR },
-          }
-        )
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: { field: "line_color" },
-          line_alpha: { field: "alpha" },
-          line_width: 1,
-        )
-      end
-    end
-
-    def layout_provider
-      return @layout_provider if @layout_provider
-
-      initial_layout = layouts_by_chunk.first
-      node_names = PyCall::List.new(whole_graph.nodes)
-      nodes_x, nodes_y = node_names.map { |node| initial_layout[node] ? initial_layout[node] : layouts_by_chunk.last[node] }.transpose
-      graph_layout = node_names.zip(nodes_x, nodes_y).map { |node, x, y| [node, [x, y]] }.to_h
-      @layout_provider = bokeh_models.StaticLayoutProvider.new(graph_layout: graph_layout)
-    end
-
-    def node_colors
-      return @node_colors if @node_colors
-
-      palette = [
-        "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99",
-        "#e74446", "#fdbf6f", "#ff7f00", "#cab2d6", "#7850a4",
-        "#ffff99", "#b8693d", "#8dd3c7", "#ffffb3", "#bebada",
-        "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5",
-        "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f", "#1b9e77",
-        "#d95f02", "#7570b3", "#ef73b2", "#66a61e", "#e6ab02"
-      ]
-      node_names = PyCall::List.new(whole_graph.nodes)
-      community_map = node_with_community_index
-      @node_colors = node_names.map do |node_name|
-        community_index = community_map[node_name]
-        palette[community_index % palette.size]
-      end
-    end
-
-    # @return Hash: { String: Integer }
-    def node_with_community_index
-      return @node_with_community_index if @node_with_community_index
-
-      whole_communities = networkx_community.louvain_communities(whole_graph).map { |communities| PyCall::List.new(communities).to_a }
-      communities = split_communities(whole_graph, whole_communities)
-
-      @node_with_community_index = {}
-      communities.each_with_index do |community, i|
-        community.each do |node_name|
-          @node_with_community_index[node_name] = i
-        end
-      end
-      @node_with_community_index
-    end
-
-    def split_communities(graph, communities)
-      result = []
-
-      communities.each do |community|
-        if community.size <= MAX_COMMUNITY_SIZE
-          result << community
-        else
-          subgraph = graph.subgraph(community)
-          sub_communities = networkx_community.louvain_communities(subgraph).map { |comm| PyCall::List.new(comm).to_a }
-          if sub_communities.size == 1 && (sub_communities[0] - community).empty?
-            result << community
-          else
-            splitted_sub = split_communities(subgraph, sub_communities)
-            result.concat(splitted_sub)
-          end
-        end
-      end
-
-      result
     end
 
     class << self
