@@ -103,7 +103,7 @@ module ErdMap
         title_label << node_name + columns_text.scan("\n").join + "\n"
 
         padding = 36
-        line_count = columns_text.split("\n").size
+        line_count = columns_text.scan("\n").size + 1
         rect_heights << line_count * 20 + padding
       end
 
