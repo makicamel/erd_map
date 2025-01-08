@@ -22,19 +22,6 @@ module ErdMap
     end
 
     def build_layout
-      labels = bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: "index",
-        source: graph_renderer.node_renderer.data_source,
-        text_font_size: "12pt",
-        text_color: { field: "text_color" },
-        text_outline_color: { field: "text_outline_color" },
-        text_align: "center",
-        text_baseline: "middle",
-        text_alpha: { field: "alpha" },
-      )
-
       padding_ratio = 0.1
       x_min, x_max, y_min, y_max = graph.initial_layout.values.transpose.map(&:minmax).flatten
       x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
@@ -59,7 +46,7 @@ module ErdMap
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
         plot.renderers.append(graph_renderer.graph_renderer)
-        plot.add_layout(labels)
+        plot.add_layout(default_label)
         plot.x_range.js_on_change("start", custom_js("triggerZoom", search_box: search_box))
         plot.x_range.js_on_change("end", custom_js("triggerZoom", search_box: search_box))
         plot.js_on_event("mousemove", custom_js("toggleHovered"))
@@ -128,6 +115,52 @@ module ErdMap
           tapModeToggle: tap_mode_toggle,
         ),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
+      )
+    end
+
+    def default_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "index",
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "12pt",
+        text_color: { field: "text_color" },
+        text_outline_color: { field: "text_outline_color" },
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+      )
+    end
+
+
+    def title_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: { field: "title_label" },
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "10pt",
+        text_font_style: "bold",
+        text_color: "black",
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+      )
+    end
+
+    def columns_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: { field: "columns_label" },
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "10pt",
+        text_font_style: "normal",
+        text_color: "black",
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
       )
     end
 

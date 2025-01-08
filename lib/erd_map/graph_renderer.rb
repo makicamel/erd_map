@@ -56,14 +56,8 @@ module ErdMap
 
     def build_renderer
       bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
-        renderer.node_renderer.data_source = node_data_source
-        renderer.node_renderer.glyph = bokeh_models.Circle.new(
-          radius: "radius",
-          radius_units: "screen",
-          fill_color: { field: "fill_color" },
-          fill_alpha: { field: "alpha" },
-          line_alpha: { field: "alpha" },
-        )
+        renderer.node_renderer.data_source = default_node_data_source
+        renderer.node_renderer.glyph = circle_glyph
         renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
         renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
 
@@ -76,9 +70,10 @@ module ErdMap
       end
     end
 
-    def node_data_source
+    def default_node_data_source
       nodes_x, nodes_y = graph.node_names.map { |node| graph.initial_layout[node] ? graph.initial_layout[node] : graph.whole_layout[node] }.transpose
-      nodes_alpha = graph.node_names.map { |node| graph.initial_nodes.include?(node) ? VISIBLE : TRANSLUCENT }
+      nodes_alpha = graph.node_names.map { |node| graph.initial_layout[node] ? VISIBLE : TRANSLUCENT }
+
       bokeh_models.ColumnDataSource.new(
         data: {
           index: graph.node_names,
@@ -92,6 +87,64 @@ module ErdMap
           text_color: graph.node_names.map { BASIC_COLOR },
           text_outline_color: graph.node_names.map { nil },
         }
+      )
+    end
+
+    def rect_node_data_source
+      nodes_x, nodes_y = graph.node_names.map { |node| graph.initial_layout[node] ? graph.initial_layout[node] : graph.whole_layout[node] }.transpose
+      nodes_alpha = graph.node_names.map { |node| graph.initial_layout[node] ? VISIBLE : TRANSLUCENT }
+
+      columns_label = []
+      title_label = []
+      rect_heights = []
+      graph.node_names.map do |node_name|
+        columns_text = "\n" + format_text(graph.association_columns[node_name])
+        columns_label << columns_text
+        title_label << node_name + columns_text.scan("\n").join + "\n"
+
+        padding = 36
+        line_count = columns_text.split("\n").size
+        rect_heights << line_count * 20 + padding
+      end
+
+      bokeh_models.ColumnDataSource.new(
+        data: {
+          index: graph.node_names,
+          alpha: nodes_alpha,
+          x: nodes_x,
+          y: nodes_y,
+          rect_height: rect_heights,
+          title_label: title_label,
+          columns_label: columns_label,
+        }
+      )
+    end
+
+    def format_text(columns)
+      max_chars_size = 20
+      columns.flat_map { |column| column.scan(/(\w{1,#{max_chars_size}})/) }.join("\n")
+    end
+
+    def circle_glyph
+      bokeh_models.Circle.new(
+        radius: "radius",
+        radius_units: "screen",
+        fill_color: { field: "fill_color" },
+        fill_alpha: { field: "alpha" },
+        line_alpha: { field: "alpha" },
+      )
+    end
+
+    def rect_glyph
+      bokeh_models.Rect.new(
+        width: 150,
+        height: { field: "rect_height" },
+        width_units: "screen",
+        height_units: "screen",
+        fill_color: "white",
+        fill_alpha: { field: "alpha" },
+        line_color: BASIC_COLOR,
+        line_alpha: { field: "alpha" },
       )
     end
 
