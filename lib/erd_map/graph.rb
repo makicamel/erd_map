@@ -5,8 +5,6 @@ module ErdMap
     CHUNK_SIZE = 3
     MAX_COMMUNITY_SIZE = 20
 
-    attr_reader :association_columns
-
     # @return Array: [{ "NodeA" => [x, y] }, { "NodeA" => [x, y], "NodeB" => [x, y], "NodeC" => [x, y] }, ...]
     def layouts_by_chunk
       return @layouts_by_chunk if @layouts_by_chunk
@@ -101,6 +99,16 @@ module ErdMap
       end
     end
 
+    def association_columns
+      return @association_columns if @association_columns
+
+      connection_adapter = ActiveRecord::Base.connection
+      @association_columns = node_names.map do |node_name|
+        table_name = node_name.underscore.pluralize
+        [node_name, connection_adapter.foreign_keys(table_name).map(&:column)]
+      end.to_h
+    end
+
     def node_colors
       return @node_colors if @node_colors
 
@@ -138,14 +146,12 @@ module ErdMap
         .reject { |model| model.name.in?(%w[ActiveRecord::SchemaMigration ActiveRecord::InternalMetadata]) }
         .select(&:table_exists?)
 
-      @association_columns = Hash.new { |hash, key| hash[key] = [] }
       models.each do |model|
         whole_graph.add_node(model.name)
         [:has_many, :has_one, :belongs_to].each do |association_type|
           model.reflect_on_all_associations(association_type).select { |mod| !mod.options[:polymorphic] }.map(&:class_name).uniq.select { |target| target.constantize.respond_to?(:column_names) }.map do |target|
             if association_type == :belongs_to
               whole_graph.add_edge(target, model.name)
-              @association_columns[model.name] |= [target.try(:foreign_key)].compact
             else
               whole_graph.add_edge(model.name, target)
             end
