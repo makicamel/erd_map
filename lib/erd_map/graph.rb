@@ -102,11 +102,15 @@ module ErdMap
     def association_columns
       return @association_columns if @association_columns
 
-      connection_adapter = ActiveRecord::Base.connection
-      @association_columns = node_names.map do |node_name|
-        table_name = node_name.underscore.pluralize
-        [node_name, connection_adapter.foreign_keys(table_name).map(&:column)]
-      end.to_h
+      @association_columns = Hash.new { |hash, key| hash[key] = [] }
+      whole_models.each do |model|
+        model.reflect_on_all_associations(:belongs_to).select { |mod| !mod.options[:polymorphic] }.map do |target|
+          if target.try(:foreign_key) && model.column_names.include?(target.foreign_key)
+            @association_columns[model.name] << target.foreign_key
+          end
+        end
+      end
+      @association_columns
     end
 
     def node_colors
@@ -139,14 +143,17 @@ module ErdMap
       @whole_graph = build_whole_graph
     end
 
-    def build_whole_graph
+    def whole_models
       Rails.application.eager_load!
-      whole_graph = nx.Graph.new
-      models = ActiveRecord::Base.descendants
+      @whole_models ||= ActiveRecord::Base.descendants
         .reject { |model| model.name.in?(%w[ActiveRecord::SchemaMigration ActiveRecord::InternalMetadata]) }
         .select(&:table_exists?)
+    end
 
-      models.each do |model|
+    def build_whole_graph
+      whole_graph = nx.Graph.new
+
+      whole_models.each do |model|
         whole_graph.add_node(model.name)
         [:has_many, :has_one, :belongs_to].each do |association_type|
           model.reflect_on_all_associations(association_type).select { |mod| !mod.options[:polymorphic] }.map(&:class_name).uniq.select { |target| target.constantize.respond_to?(:column_names) }.map do |target|
