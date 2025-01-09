@@ -98,9 +98,10 @@ module ErdMap
       title_label = []
       rect_heights = []
       graph.node_names.map do |node_name|
-        columns_text = "\n" + format_text(graph.association_columns[node_name])
+        title_text = format_text([node_name], title: true)
+        columns_text = [*title_text.scan("\n"), "\n", format_text(graph.association_columns[node_name])].join
         columns_label << columns_text
-        title_label << node_name + columns_text.scan("\n").join + "\n"
+        title_label << [title_text, "\n", *columns_text.scan("\n")].join
 
         padding = 36
         line_count = columns_text.scan("\n").size + 1
@@ -124,8 +125,8 @@ module ErdMap
       )
     end
 
-    def format_text(columns)
-      max_chars_size = 20
+    def format_text(columns, title: false)
+      max_chars_size = title ? 18 : 20
       columns.flat_map { |column| column.scan(/(\w{1,#{max_chars_size}})/) }.join("\n")
     end
 
