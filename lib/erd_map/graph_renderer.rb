@@ -116,6 +116,10 @@ module ErdMap
           rect_height: rect_heights,
           title_label: title_label,
           columns_label: columns_label,
+          fill_color: graph.node_names.map { "white" },
+          original_color: graph.node_names.map { "white" },
+          text_color: graph.node_names.map { BASIC_COLOR },
+          text_outline_color: graph.node_names.map { nil },
         }
       )
     end
@@ -141,7 +145,7 @@ module ErdMap
         height: { field: "rect_height" },
         width_units: "screen",
         height_units: "screen",
-        fill_color: "white",
+        fill_color: { field: "fill_color" },
         fill_alpha: { field: "alpha" },
         line_color: BASIC_COLOR,
         line_alpha: { field: "alpha" },
