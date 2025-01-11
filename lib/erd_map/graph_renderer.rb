@@ -20,7 +20,7 @@ module ErdMap
         layout_provider: layout_provider,
         visible: false,
       ).tap do |renderer|
-        renderer.node_renderer.data_source = rect_node_data_source
+        renderer.node_renderer.data_source = node_data_source
         renderer.node_renderer.glyph = rect_glyph
         renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
         renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
@@ -38,7 +38,7 @@ module ErdMap
         layout_provider: layout_provider,
         visible: true,
       ).tap do |renderer|
-        renderer.node_renderer.data_source = circle_node_data_source
+        renderer.node_renderer.data_source = node_data_source
         renderer.node_renderer.glyph = circle_glyph
         renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
         renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
@@ -112,8 +112,6 @@ module ErdMap
         rectRenderer: rect_renderer,
         circleRenderer: circle_renderer,
         layoutProvider: layout_provider,
-        circleNodeDataSource: circle_node_data_source,
-        rectNodeDataSource: rect_node_data_source,
         cardinalityDataSource: cardinality_data_source,
         connectionsData: graph.connections.to_json,
         layoutsByChunkData: graph.layouts_by_chunk.to_json,
@@ -142,27 +140,7 @@ module ErdMap
       @graph_renderer = circle_renderer
     end
 
-    def circle_node_data_source
-      nodes_x, nodes_y = graph.node_names.map { |node| graph.initial_layout[node] ? graph.initial_layout[node] : graph.whole_layout[node] }.transpose
-      nodes_alpha = graph.node_names.map { |node| graph.initial_layout[node] ? VISIBLE : TRANSLUCENT }
-
-      bokeh_models.ColumnDataSource.new(
-        data: {
-          index: graph.node_names,
-          alpha: nodes_alpha,
-          x: nodes_x,
-          y: nodes_y,
-          radius: graph.node_radius,
-          original_radius: graph.node_radius,
-          fill_color: graph.node_colors,
-          original_color: graph.node_colors,
-          text_color: graph.node_names.map { BASIC_COLOR },
-          text_outline_color: graph.node_names.map { nil },
-        }
-      )
-    end
-
-    def rect_node_data_source
+    def node_data_source
       nodes_x, nodes_y = graph.node_names.map { |node| graph.initial_layout[node] ? graph.initial_layout[node] : graph.whole_layout[node] }.transpose
       nodes_alpha = graph.node_names.map { |node| graph.initial_layout[node] ? VISIBLE : TRANSLUCENT }
 
@@ -187,11 +165,13 @@ module ErdMap
           x: nodes_x,
           y: nodes_y,
           radius: graph.node_radius,
+          original_radius: graph.node_radius,
           rect_height: rect_heights,
           title_label: title_label,
           columns_label: columns_label,
-          fill_color: graph.node_names.map { "white" },
-          original_color: graph.node_names.map { "white" },
+          fill_color: graph.node_colors,
+          circle_original_color: graph.node_colors,
+          rect_original_color: graph.node_names.map { "white" },
           text_color: graph.node_names.map { BASIC_COLOR },
           text_outline_color: graph.node_names.map { nil },
         }
@@ -219,10 +199,10 @@ module ErdMap
         height: { field: "rect_height" },
         width_units: "screen",
         height_units: "screen",
-        fill_color: { field: "fill_color" },
-        fill_alpha: { field: "alpha" },
+        fill_color: { field: "rect_original_color" },
+        # fill_alpha: { field: "alpha" },
         line_color: BASIC_COLOR,
-        line_alpha: { field: "alpha" },
+        # line_alpha: { field: "alpha" },
       )
     end
 

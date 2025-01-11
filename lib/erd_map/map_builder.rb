@@ -32,10 +32,6 @@ module ErdMap
       tap_mode_toggle = bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
         button.js_on_click(custom_js("toggleTapMode", tap_mode_toggle: button))
       end
-      display_title_mode_toggle = bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
-        button.js_on_click(custom_js("toggleDisplayTitleMode", display_title_mode_toggle: button))
-      end
-
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
         x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
@@ -60,9 +56,12 @@ module ErdMap
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
           ))
-        plot.js_on_event("reset", custom_js("resetPlot", search_box: search_box, zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle, display_title_mode_toggle: display_title_mode_toggle))
       end
 
+      display_title_mode_toggle = bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
+        button.js_on_click(custom_js("toggleDisplayTitleMode", display_title_mode_toggle: button, plot: plot))
+      end
+      plot.js_on_event("reset", custom_js("resetPlot", search_box: search_box, zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle, display_title_mode_toggle: display_title_mode_toggle, plot: plot))
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
       zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
@@ -115,13 +114,14 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, search_box: nil, zoom_mode_toggle: nil, tap_mode_toggle: nil, display_title_mode_toggle: nil)
+    def custom_js(function_name, search_box: nil, zoom_mode_toggle: nil, tap_mode_toggle: nil, display_title_mode_toggle: nil, plot: nil)
       bokeh_models.CustomJS.new(
         args: graph_renderer.js_args.merge(
           searchBox: search_box,
           zoomModeToggle: zoom_mode_toggle,
           tapModeToggle: tap_mode_toggle,
           displayTitleModeToggle: display_title_mode_toggle,
+          plot: plot
         ),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
