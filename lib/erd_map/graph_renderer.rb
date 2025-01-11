@@ -23,6 +23,41 @@ module ErdMap
       )
     end
 
+    def cardinality_data_source
+      return @cardinality_data_source if @cardinality_data_source
+
+      @cardinality_data_source = bokeh_models.ColumnDataSource.new(
+        data: {
+          x: [],
+          y: [],
+          text: [],
+        }
+      )
+
+      graph.edges.each do |(source_node, target_node)|
+        next if source_node == target_node
+
+        source_x, source_y = graph.initial_layout[source_node] || graph.whole_layout[source_node]
+        target_x, target_y = graph.initial_layout[target_node] || graph.whole_layout[target_node]
+
+        vector_x = target_x - source_x
+        vector_y = target_y - source_y
+        length = Math.sqrt(vector_x**2 + vector_y**2)
+
+        x_offset = 0.2
+        y_offset = 0.3
+
+        @cardinality_data_source.data[:x] << source_x + (vector_x / length) * x_offset
+        @cardinality_data_source.data[:y] << source_y + (vector_y / length) * y_offset
+        @cardinality_data_source.data[:text] << "1"
+
+        @cardinality_data_source.data[:x] << target_x - (vector_x / length) * x_offset
+        @cardinality_data_source.data[:y] << target_y - (vector_y / length) * y_offset
+        @cardinality_data_source.data[:text] << "n"
+      end
+      @cardinality_data_source
+    end
+
     def js_args
       @js_args ||= {
         graphRenderer: graph_renderer,
