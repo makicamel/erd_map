@@ -47,7 +47,7 @@ module ErdMap
         plot.toolbar.active_scroll = wheel_zoom_tool
         plot.renderers.append(graph_renderer.graph_renderer)
         plot.add_layout(default_label)
-        plot.add_layout(graph_renderer.cardinality_label_set)
+        plot.add_layout(cardinality_label_set)
         plot.x_range.js_on_change("start", custom_js("triggerZoom", search_box: search_box))
         plot.x_range.js_on_change("end", custom_js("triggerZoom", search_box: search_box))
         plot.js_on_event("mousemove", custom_js("toggleHovered"))
@@ -174,8 +174,8 @@ module ErdMap
         text: "text",
         source: graph_renderer.cardinality_data_source,
         text_font_size: "12pt",
-        text_color: BASIC_COLOR,
-        # text_alpha: { field: "alpha" },
+        text_color: GraphRenderer::BASIC_COLOR,
+        text_alpha: { field: "alpha" },
       )
     end
 

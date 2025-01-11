@@ -30,30 +30,40 @@ module ErdMap
         data: {
           x: [],
           y: [],
+          source: [],
+          target: [],
           text: [],
+          alpha: [],
         }
       )
 
       graph.edges.each do |(source_node, target_node)|
         next if source_node == target_node
 
+        label_alpha = graph.initial_nodes.include?(source_node) && graph.initial_nodes.include?(target_node) ?
+          VISIBLE : 0
+
+        x_offset = 0.2
+        y_offset = 0.3
         source_x, source_y = graph.initial_layout[source_node] || graph.whole_layout[source_node]
         target_x, target_y = graph.initial_layout[target_node] || graph.whole_layout[target_node]
-
         vector_x = target_x - source_x
         vector_y = target_y - source_y
         length = Math.sqrt(vector_x**2 + vector_y**2)
 
-        x_offset = 0.2
-        y_offset = 0.3
-
         @cardinality_data_source.data[:x] << source_x + (vector_x / length) * x_offset
         @cardinality_data_source.data[:y] << source_y + (vector_y / length) * y_offset
+        @cardinality_data_source.data[:source] << source_node
+        @cardinality_data_source.data[:target] << target_node
         @cardinality_data_source.data[:text] << "1"
+        @cardinality_data_source.data[:alpha] << label_alpha
 
         @cardinality_data_source.data[:x] << target_x - (vector_x / length) * x_offset
         @cardinality_data_source.data[:y] << target_y - (vector_y / length) * y_offset
-        @cardinality_data_source.data[:text] << "n"
+        @cardinality_data_source.data[:source] << source_node
+        @cardinality_data_source.data[:target] << target_node
+        @cardinality_data_source.data[:text] << "n" # FIXME: Show "1" when has_one association
+        @cardinality_data_source.data[:alpha] << label_alpha
       end
       @cardinality_data_source
     end
@@ -62,6 +72,7 @@ module ErdMap
       @js_args ||= {
         graphRenderer: graph_renderer,
         layoutProvider: layout_provider,
+        cardinalityDataSource: cardinality_data_source,
         connectionsData: graph.connections.to_json,
         layoutsByChunkData: graph.layouts_by_chunk.to_json,
         chunkedNodesData: graph.chunked_nodes.to_json,
