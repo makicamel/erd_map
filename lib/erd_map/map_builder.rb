@@ -174,7 +174,7 @@ module ErdMap
         text: "text",
         source: graph_renderer.cardinality_data_source,
         text_font_size: "12pt",
-        text_color: GraphRenderer::BASIC_COLOR,
+        text_color: "text_color",
         text_alpha: { field: "alpha" },
       )
     end

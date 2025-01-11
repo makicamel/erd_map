@@ -34,6 +34,7 @@ module ErdMap
           target: [],
           text: [],
           alpha: [],
+          text_color: [],
         }
       )
 
@@ -65,6 +66,7 @@ module ErdMap
         @cardinality_data_source.data[:text] << "n" # FIXME: Show "1" when has_one association
         @cardinality_data_source.data[:alpha] << label_alpha
       end
+      @cardinality_data_source.data[:text_color] = Array.new(@cardinality_data_source.data[:x].to_a.size) { BASIC_COLOR }
       @cardinality_data_source
     end
 
