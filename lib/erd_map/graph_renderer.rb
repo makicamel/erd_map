@@ -3,7 +3,7 @@
 module ErdMap
   class GraphRenderer
     extend Forwardable
-    def_delegators :@graph_renderer, :node_renderer
+    def_delegators :@graph_renderer, :node_renderer, :circle_renderer, :rect_renderer
 
     attr_reader :graph_renderer
 
@@ -14,6 +14,42 @@ module ErdMap
     HIGHLIGHT_TEXT_COLOR = "white"
     BASIC_COLOR = "darkslategray"
     EMPTHASIS_NODE_SIZE = 80
+
+    def rect_renderer
+      @rect_renderer ||= bokeh_models.GraphRenderer.new(
+        layout_provider: layout_provider,
+        visible: false,
+      ).tap do |renderer|
+        renderer.node_renderer.data_source = rect_node_data_source
+        renderer.node_renderer.glyph = rect_glyph
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
+        renderer.edge_renderer.data_source = edge_data_source
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: { field: "line_color" },
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
+    end
+
+    def circle_renderer
+      @circle_renderer ||= bokeh_models.GraphRenderer.new(
+        layout_provider: layout_provider,
+        visible: true,
+      ).tap do |renderer|
+        renderer.node_renderer.data_source = circle_node_data_source
+        renderer.node_renderer.glyph = circle_glyph
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
+        renderer.edge_renderer.data_source = edge_data_source
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: { field: "line_color" },
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
+    end
 
     def selecting_node_label
       @selecting_node_label ||= bokeh_models.Div.new(
@@ -73,7 +109,11 @@ module ErdMap
     def js_args
       @js_args ||= {
         graphRenderer: graph_renderer,
+        rectRenderer: rect_renderer,
+        circleRenderer: circle_renderer,
         layoutProvider: layout_provider,
+        circleNodeDataSource: circle_node_data_source,
+        rectNodeDataSource: rect_node_data_source,
         cardinalityDataSource: cardinality_data_source,
         connectionsData: graph.connections.to_json,
         layoutsByChunkData: graph.layouts_by_chunk.to_json,
@@ -99,26 +139,10 @@ module ErdMap
       import_modules = ErdMap.py_call_modules.imported_modules
       @bokeh_models = import_modules[:bokeh_models]
       @graph = graph
-      @graph_renderer = build_renderer
+      @graph_renderer = circle_renderer
     end
 
-    def build_renderer
-      bokeh_models.GraphRenderer.new(layout_provider: layout_provider).tap do |renderer|
-        renderer.node_renderer.data_source = default_node_data_source
-        renderer.node_renderer.glyph = circle_glyph
-        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
-        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
-
-        renderer.edge_renderer.data_source = edge_data_source
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: { field: "line_color" },
-          line_alpha: { field: "alpha" },
-          line_width: 1,
-        )
-      end
-    end
-
-    def default_node_data_source
+    def circle_node_data_source
       nodes_x, nodes_y = graph.node_names.map { |node| graph.initial_layout[node] ? graph.initial_layout[node] : graph.whole_layout[node] }.transpose
       nodes_alpha = graph.node_names.map { |node| graph.initial_layout[node] ? VISIBLE : TRANSLUCENT }
 
@@ -162,6 +186,7 @@ module ErdMap
           alpha: nodes_alpha,
           x: nodes_x,
           y: nodes_y,
+          radius: graph.node_radius,
           rect_height: rect_heights,
           title_label: title_label,
           columns_label: columns_label,

@@ -32,6 +32,9 @@ module ErdMap
       tap_mode_toggle = bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
         button.js_on_click(custom_js("toggleTapMode", tap_mode_toggle: button))
       end
+      display_title_mode_toggle = bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
+        button.js_on_click(custom_js("toggleDisplayTitleMode", display_title_mode_toggle: button))
+      end
 
       plot = bokeh_models.Plot.new(
         sizing_mode: "stretch_both",
@@ -45,16 +48,19 @@ module ErdMap
         ],
       ).tap do |plot|
         plot.toolbar.active_scroll = wheel_zoom_tool
-        plot.renderers.append(graph_renderer.graph_renderer)
+        plot.renderers.append(graph_renderer.rect_renderer)
+        plot.renderers.append(graph_renderer.circle_renderer)
         plot.add_layout(default_label)
         plot.add_layout(cardinality_label_set)
+        # plot.add_layout(title_label)
+        # plot.add_layout(columns_label)
         plot.x_range.js_on_change("start", custom_js("triggerZoom", search_box: search_box))
         plot.x_range.js_on_change("end", custom_js("triggerZoom", search_box: search_box))
         plot.js_on_event("mousemove", custom_js("toggleHovered"))
         plot.js_on_event("mousemove", bokeh_models.CustomJS.new(
           code: save_mouse_position
           ))
-        plot.js_on_event("reset", custom_js("resetPlot", search_box: search_box, zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle))
+        plot.js_on_event("reset", custom_js("resetPlot", search_box: search_box, zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle, display_title_mode_toggle: display_title_mode_toggle))
       end
 
       left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
@@ -76,6 +82,7 @@ module ErdMap
               search_box,
               zoom_mode_toggle,
               tap_mode_toggle,
+              display_title_mode_toggle,
               zoom_in_button,
               zoom_out_button,
               right_spacer,
@@ -108,12 +115,13 @@ module ErdMap
       JS
     end
 
-    def custom_js(function_name, search_box: nil, zoom_mode_toggle: nil, tap_mode_toggle: nil)
+    def custom_js(function_name, search_box: nil, zoom_mode_toggle: nil, tap_mode_toggle: nil, display_title_mode_toggle: nil)
       bokeh_models.CustomJS.new(
         args: graph_renderer.js_args.merge(
           searchBox: search_box,
           zoomModeToggle: zoom_mode_toggle,
           tapModeToggle: tap_mode_toggle,
+          displayTitleModeToggle: display_title_mode_toggle,
         ),
         code: [graph_manager, "graphManager.#{function_name}()"].join("\n"),
       )
