@@ -27,6 +27,7 @@ module ErdMap
         plot.renderers.append(renderer)
         renderer.node_renderer.data_source.selected.js_on_change("indices", toggle_tapped)
       end
+      plot.add_layout(graph_renderer.cardinality_label)
       bokeh_io.curdoc.js_on_event("document_ready", setup_graph_manager(plot))
 
       bokeh_models.Column.new(

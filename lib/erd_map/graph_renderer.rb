@@ -19,6 +19,18 @@ module ErdMap
       [circle_renderer, rect_renderer]
     end
 
+    def cardinality_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "text",
+        source: cardinality_data_source,
+        text_font_size: "12pt",
+        text_color: "text_color",
+        text_alpha: { field: "alpha" },
+      )
+    end
+
     def js_args(plot)
       {
         graphRenderer: graph_renderer,
@@ -212,18 +224,6 @@ module ErdMap
         text_baseline: "middle",
         text_alpha: { field: "alpha" },
         # visible: false,
-      )
-    end
-
-    def cardinality_label
-      bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: "text",
-        source: cardinality_data_source,
-        text_font_size: "12pt",
-        text_color: "text_color",
-        text_alpha: { field: "alpha" },
       )
     end
 
