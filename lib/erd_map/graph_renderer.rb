@@ -3,7 +3,7 @@
 module ErdMap
   class GraphRenderer
     extend Forwardable
-    def_delegators :@graph_renderer, :node_renderer, :circle_renderer, :rect_renderer
+    def_delegators :@graph_renderer, :node_renderer
 
     attr_reader :graph_renderer
 
@@ -15,40 +15,8 @@ module ErdMap
     BASIC_COLOR = "darkslategray"
     EMPTHASIS_NODE_SIZE = 80
 
-    def rect_renderer
-      @rect_renderer ||= bokeh_models.GraphRenderer.new(
-        layout_provider: layout_provider,
-        visible: false,
-      ).tap do |renderer|
-        renderer.node_renderer.data_source = node_data_source
-        renderer.node_renderer.glyph = rect_glyph
-        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
-        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
-        renderer.edge_renderer.data_source = edge_data_source
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: { field: "line_color" },
-          line_alpha: { field: "alpha" },
-          line_width: 1,
-        )
-      end
-    end
-
-    def circle_renderer
-      @circle_renderer ||= bokeh_models.GraphRenderer.new(
-        layout_provider: layout_provider,
-        visible: true,
-      ).tap do |renderer|
-        renderer.node_renderer.data_source = node_data_source
-        renderer.node_renderer.glyph = circle_glyph
-        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
-        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
-        renderer.edge_renderer.data_source = edge_data_source
-        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
-          line_color: { field: "line_color" },
-          line_alpha: { field: "alpha" },
-          line_width: 1,
-        )
-      end
+    def renderers
+      [circle_renderer, rect_renderer]
     end
 
     def selecting_node_label
@@ -185,6 +153,42 @@ module ErdMap
     def format_text(columns, title: false)
       max_chars_size = title ? 18 : 20
       columns.flat_map { |column| column.scan(/(\w{1,#{max_chars_size}})/) }.join("\n")
+    end
+
+    def circle_renderer
+      @circle_renderer ||= bokeh_models.GraphRenderer.new(
+        layout_provider: layout_provider,
+        visible: true,
+      ).tap do |renderer|
+        renderer.node_renderer.data_source = node_data_source
+        renderer.node_renderer.glyph = circle_glyph
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
+        renderer.edge_renderer.data_source = edge_data_source
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: { field: "line_color" },
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
+    end
+
+    def rect_renderer
+      @rect_renderer ||= bokeh_models.GraphRenderer.new(
+        layout_provider: layout_provider,
+        visible: false,
+      ).tap do |renderer|
+        renderer.node_renderer.data_source = node_data_source
+        renderer.node_renderer.glyph = rect_glyph
+        renderer.node_renderer.selection_glyph = renderer.node_renderer.glyph
+        renderer.node_renderer.nonselection_glyph = renderer.node_renderer.glyph
+        renderer.edge_renderer.data_source = edge_data_source
+        renderer.edge_renderer.glyph = bokeh_models.MultiLine.new(
+          line_color: { field: "line_color" },
+          line_alpha: { field: "alpha" },
+          line_width: 1,
+        )
+      end
     end
 
     def circle_glyph

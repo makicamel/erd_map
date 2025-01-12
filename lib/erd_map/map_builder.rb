@@ -23,14 +23,15 @@ module ErdMap
 
     def build_layout
       plot = Plot.new(graph)
-      plot.renderers.append(graph_renderer.rect_renderer)
-      plot.renderers.append(graph_renderer.circle_renderer)
+      graph_renderer.renderers.each do |renderer|
+        plot.renderers.append(renderer)
+        renderer.node_renderer.data_source.selected.js_on_change("indices", toggle_tapped)
+      end
       plot.add_layout(default_label)
       plot.add_layout(cardinality_label_set)
       # plot.add_layout(title_label)
       # plot.add_layout(columns_label)
       bokeh_io.curdoc.js_on_event("document_ready", setup_graph_manager(plot))
-      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", toggle_tapped)
 
       bokeh_models.Column.new(
         children: [
