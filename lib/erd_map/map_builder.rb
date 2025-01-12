@@ -40,6 +40,7 @@ module ErdMap
               plot.button_set[:zoom_mode_toggle],
               plot.button_set[:tap_mode_toggle],
               plot.button_set[:display_title_mode_toggle],
+              plot.button_set[:re_layout_button],
               plot.button_set[:zoom_in_button],
               plot.button_set[:zoom_out_button],
               plot.button_set[:right_spacer],

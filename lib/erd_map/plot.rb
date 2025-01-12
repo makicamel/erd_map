@@ -84,6 +84,7 @@ module ErdMap
           zoom_mode_toggle: zoom_mode_toggle,
           tap_mode_toggle: tap_mode_toggle,
           display_title_mode_toggle: display_title_mode_toggle,
+          re_layout_button: re_layout_button,
           zoom_in_button: zoom_in_button,
           zoom_out_button: zoom_out_button,
           right_spacer: right_spacer,
@@ -127,6 +128,12 @@ module ErdMap
       def display_title_mode_toggle
         bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
           button.js_on_click(custom_js("toggleDisplayTitleMode"))
+        end
+      end
+
+      def re_layout_button
+        bokeh_models.Button.new(label: "Re-Layout", button_type: "default").tap do |button|
+          button.js_on_click(custom_js("reLayout"))
         end
       end
 
