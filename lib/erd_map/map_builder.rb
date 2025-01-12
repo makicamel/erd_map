@@ -27,10 +27,6 @@ module ErdMap
         plot.renderers.append(renderer)
         renderer.node_renderer.data_source.selected.js_on_change("indices", toggle_tapped)
       end
-      plot.add_layout(default_label)
-      plot.add_layout(cardinality_label_set)
-      # plot.add_layout(title_label)
-      # plot.add_layout(columns_label)
       bokeh_io.curdoc.js_on_event("document_ready", setup_graph_manager(plot))
 
       bokeh_models.Column.new(
@@ -84,6 +80,8 @@ module ErdMap
             zoomModeToggle,
             tapModeToggle,
             displayTitleModeToggle,
+            nodeLabels,
+            plot,
             windowObj: window,
           })
         JS
@@ -96,66 +94,6 @@ module ErdMap
           window.graphManager.cbObj = cb_obj
           window.graphManager.toggleTapped()
         JS
-      )
-    end
-
-    def default_label
-      bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: "index",
-        source: graph_renderer.node_renderer.data_source,
-        text_font_size: "12pt",
-        text_color: { field: "text_color" },
-        text_outline_color: { field: "text_outline_color" },
-        text_align: "center",
-        text_baseline: "middle",
-        text_alpha: { field: "alpha" },
-      )
-    end
-
-
-    def title_label
-      bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: { field: "title_label" },
-        source: graph_renderer.node_renderer.data_source,
-        text_font_size: "10pt",
-        text_font_style: "bold",
-        text_color: { field: "text_color" },
-        text_outline_color: { field: "text_outline_color" },
-        text_align: "center",
-        text_baseline: "middle",
-        text_alpha: { field: "alpha" },
-      )
-    end
-
-    def columns_label
-      bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: { field: "columns_label" },
-        source: graph_renderer.node_renderer.data_source,
-        text_font_size: "10pt",
-        text_font_style: "normal",
-        text_color: { field: "text_color" },
-        text_outline_color: { field: "text_outline_color" },
-        text_align: "center",
-        text_baseline: "middle",
-        text_alpha: { field: "alpha" },
-      )
-    end
-
-    def cardinality_label_set
-      @cardinality_label_set ||= bokeh_models.LabelSet.new(
-        x: "x",
-        y: "y",
-        text: "text",
-        source: graph_renderer.cardinality_data_source,
-        text_font_size: "12pt",
-        text_color: "text_color",
-        text_alpha: { field: "alpha" },
       )
     end
 

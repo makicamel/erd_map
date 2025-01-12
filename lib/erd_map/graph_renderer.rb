@@ -19,53 +19,6 @@ module ErdMap
       [circle_renderer, rect_renderer]
     end
 
-    def cardinality_data_source
-      return @cardinality_data_source if @cardinality_data_source
-
-      @cardinality_data_source = bokeh_models.ColumnDataSource.new(
-        data: {
-          x: [],
-          y: [],
-          source: [],
-          target: [],
-          text: [],
-          alpha: [],
-          text_color: [],
-        }
-      )
-
-      graph.edges.each do |(source_node, target_node)|
-        next if source_node == target_node
-
-        label_alpha = graph.initial_nodes.include?(source_node) && graph.initial_nodes.include?(target_node) ?
-          VISIBLE : 0
-
-        x_offset = 0.2
-        y_offset = 0.3
-        source_x, source_y = graph.initial_layout[source_node] || graph.whole_layout[source_node]
-        target_x, target_y = graph.initial_layout[target_node] || graph.whole_layout[target_node]
-        vector_x = target_x - source_x
-        vector_y = target_y - source_y
-        length = Math.sqrt(vector_x**2 + vector_y**2)
-
-        @cardinality_data_source.data[:x] << source_x + (vector_x / length) * x_offset
-        @cardinality_data_source.data[:y] << source_y + (vector_y / length) * y_offset
-        @cardinality_data_source.data[:source] << source_node
-        @cardinality_data_source.data[:target] << target_node
-        @cardinality_data_source.data[:text] << "1"
-        @cardinality_data_source.data[:alpha] << label_alpha
-
-        @cardinality_data_source.data[:x] << target_x - (vector_x / length) * x_offset
-        @cardinality_data_source.data[:y] << target_y - (vector_y / length) * y_offset
-        @cardinality_data_source.data[:source] << source_node
-        @cardinality_data_source.data[:target] << target_node
-        @cardinality_data_source.data[:text] << "n" # FIXME: Show "1" when has_one association
-        @cardinality_data_source.data[:alpha] << label_alpha
-      end
-      @cardinality_data_source.data[:text_color] = Array.new(@cardinality_data_source.data[:x].to_a.size) { BASIC_COLOR }
-      @cardinality_data_source
-    end
-
     def js_args(plot)
       {
         graphRenderer: graph_renderer,
@@ -82,6 +35,12 @@ module ErdMap
         zoomModeToggle: plot.button_set[:zoom_mode_toggle],
         tapModeToggle: plot.button_set[:tap_mode_toggle],
         displayTitleModeToggle: plot.button_set[:display_title_mode_toggle],
+        nodeLabels: {
+          titleModelLabel: title_model_label,
+          foreignModelLabel: foreign_model_label,
+          foreignColumnsLabel: foreign_columns_label,
+        },
+        plot: plot.plot,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
         HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
@@ -206,6 +165,68 @@ module ErdMap
       )
     end
 
+    def title_model_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "index",
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "12pt",
+        text_color: { field: "text_color" },
+        text_outline_color: { field: "text_outline_color" },
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+        visible: true,
+      )
+    end
+
+    def foreign_model_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: { field: "title_label" },
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "10pt",
+        text_font_style: "bold",
+        text_color: { field: "text_color" },
+        text_outline_color: { field: "text_outline_color" },
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+        # visible: false,
+      )
+    end
+
+    def foreign_columns_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: { field: "columns_label" },
+        source: graph_renderer.node_renderer.data_source,
+        text_font_size: "10pt",
+        text_font_style: "normal",
+        text_color: { field: "text_color" },
+        text_outline_color: { field: "text_outline_color" },
+        text_align: "center",
+        text_baseline: "middle",
+        text_alpha: { field: "alpha" },
+        # visible: false,
+      )
+    end
+
+    def cardinality_label
+      bokeh_models.LabelSet.new(
+        x: "x",
+        y: "y",
+        text: "text",
+        source: cardinality_data_source,
+        text_font_size: "12pt",
+        text_color: "text_color",
+        text_alpha: { field: "alpha" },
+      )
+    end
+
     def edge_data_source
       edge_start, edge_end = graph.edges.map { |edge| [edge[0], edge[1]] }.transpose
       edges_alpha = graph.edges.map { |edge| graph.initial_nodes.include?(edge[0]) && graph.initial_nodes.include?(edge[1]) ? VISIBLE : TRANSLUCENT }
@@ -217,6 +238,53 @@ module ErdMap
           line_color: graph.edges.map { BASIC_COLOR },
         }
       )
+    end
+
+    def cardinality_data_source
+      return @cardinality_data_source if @cardinality_data_source
+
+      @cardinality_data_source = bokeh_models.ColumnDataSource.new(
+        data: {
+          x: [],
+          y: [],
+          source: [],
+          target: [],
+          text: [],
+          alpha: [],
+          text_color: [],
+        }
+      )
+
+      graph.edges.each do |(source_node, target_node)|
+        next if source_node == target_node
+
+        label_alpha = graph.initial_nodes.include?(source_node) && graph.initial_nodes.include?(target_node) ?
+          VISIBLE : 0
+
+        x_offset = 0.2
+        y_offset = 0.3
+        source_x, source_y = graph.initial_layout[source_node] || graph.whole_layout[source_node]
+        target_x, target_y = graph.initial_layout[target_node] || graph.whole_layout[target_node]
+        vector_x = target_x - source_x
+        vector_y = target_y - source_y
+        length = Math.sqrt(vector_x**2 + vector_y**2)
+
+        @cardinality_data_source.data[:x] << source_x + (vector_x / length) * x_offset
+        @cardinality_data_source.data[:y] << source_y + (vector_y / length) * y_offset
+        @cardinality_data_source.data[:source] << source_node
+        @cardinality_data_source.data[:target] << target_node
+        @cardinality_data_source.data[:text] << "1"
+        @cardinality_data_source.data[:alpha] << label_alpha
+
+        @cardinality_data_source.data[:x] << target_x - (vector_x / length) * x_offset
+        @cardinality_data_source.data[:y] << target_y - (vector_y / length) * y_offset
+        @cardinality_data_source.data[:source] << source_node
+        @cardinality_data_source.data[:target] << target_node
+        @cardinality_data_source.data[:text] << "n" # FIXME: Show "1" when has_one association
+        @cardinality_data_source.data[:alpha] << label_alpha
+      end
+      @cardinality_data_source.data[:text_color] = Array.new(@cardinality_data_source.data[:x].to_a.size) { BASIC_COLOR }
+      @cardinality_data_source
     end
 
     def layout_provider
