@@ -122,7 +122,6 @@ module ErdMap
         zoomModeToggle: plot.button_set[:zoom_mode_toggle],
         tapModeToggle: plot.button_set[:tap_mode_toggle],
         displayTitleModeToggle: plot.button_set[:display_title_mode_toggle],
-        plot: plot.plot,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
         HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,
@@ -204,10 +203,10 @@ module ErdMap
         height: { field: "rect_height" },
         width_units: "screen",
         height_units: "screen",
-        fill_color: { field: "rect_original_color" },
-        # fill_alpha: { field: "alpha" },
+        fill_color: { field: "fill_color" },
+        fill_alpha: { field: "alpha" },
         line_color: BASIC_COLOR,
-        # line_alpha: { field: "alpha" },
+        line_alpha: { field: "alpha" },
       )
     end
 
