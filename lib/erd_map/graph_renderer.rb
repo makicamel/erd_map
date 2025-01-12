@@ -106,7 +106,7 @@ module ErdMap
       @cardinality_data_source
     end
 
-    def js_args
+    def js_args(plot)
       @js_args ||= {
         graphRenderer: graph_renderer,
         rectRenderer: rect_renderer,
@@ -117,7 +117,12 @@ module ErdMap
         layoutsByChunkData: graph.layouts_by_chunk.to_json,
         chunkedNodesData: graph.chunked_nodes.to_json,
         nodeWithCommunityIndexData: graph.node_with_community_index.to_json,
+        searchBox: plot.button_set[:search_box],
         selectingNodeLabel: selecting_node_label,
+        zoomModeToggle: plot.button_set[:zoom_mode_toggle],
+        tapModeToggle: plot.button_set[:tap_mode_toggle],
+        displayTitleModeToggle: plot.button_set[:display_title_mode_toggle],
+        plot: plot.plot,
         VISIBLE: VISIBLE,
         TRANSLUCENT: TRANSLUCENT,
         HIGHLIGHT_NODE_COLOR: HIGHLIGHT_NODE_COLOR,

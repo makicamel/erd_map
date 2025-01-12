@@ -22,72 +22,33 @@ module ErdMap
     end
 
     def build_layout
-      padding_ratio = 0.1
-      x_min, x_max, y_min, y_max = graph.initial_layout.values.transpose.map(&:minmax).flatten
-      x_padding, y_padding = [(x_max - x_min) * padding_ratio, (y_max - y_min) * padding_ratio]
-
-      zoom_mode_toggle = bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "default").tap do |button|
-        button.js_on_click(custom_js("toggleZoomMode"))
-      end
-      tap_mode_toggle = bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
-        button.js_on_click(custom_js("toggleTapMode"))
-      end
-      plot = bokeh_models.Plot.new(
-        sizing_mode: "stretch_both",
-        x_range: bokeh_models.Range1d.new(start: x_min - x_padding, end: x_max + x_padding),
-        y_range: bokeh_models.Range1d.new(start: y_min - y_padding, end: y_max + y_padding),
-        tools: [
-          wheel_zoom_tool = bokeh_models.WheelZoomTool.new,
-          bokeh_models.ResetTool.new,
-          bokeh_models.PanTool.new,
-          tap_tool = bokeh_models.TapTool.new,
-        ],
-      ).tap do |plot|
-        plot.toolbar.active_scroll = wheel_zoom_tool
-        plot.renderers.append(graph_renderer.rect_renderer)
-        plot.renderers.append(graph_renderer.circle_renderer)
-        plot.add_layout(default_label)
-        plot.add_layout(cardinality_label_set)
-        # plot.add_layout(title_label)
-        # plot.add_layout(columns_label)
-        plot.x_range.js_on_change("start", custom_js("triggerZoom"))
-        plot.x_range.js_on_change("end", custom_js("triggerZoom"))
-        plot.js_on_event("mousemove", custom_js("toggleHovered"))
-        plot.js_on_event("mousemove", bokeh_models.CustomJS.new(code: save_mouse_position))
-      end
-
-      display_title_mode_toggle = bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
-        button.js_on_click(custom_js("toggleDisplayTitleMode"))
-      end
-      plot.js_on_event("reset", custom_js("resetPlot"))
-      left_spacer = bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
-      right_spacer = bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
-      zoom_in_button = bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
-        button.js_on_click(custom_js("zoomIn",))
-      end
-      zoom_out_button = bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
-        button.js_on_click(custom_js("zoomOut"))
-      end
-      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", custom_js("toggleTapped"))
-      bokeh_io.curdoc.js_on_event("document_ready", setup_graph_manager(search_box: search_box, zoom_mode_toggle: zoom_mode_toggle, tap_mode_toggle: tap_mode_toggle, display_title_mode_toggle: display_title_mode_toggle, plot: plot))
+      plot = Plot.new(graph)
+      plot.renderers.append(graph_renderer.rect_renderer)
+      plot.renderers.append(graph_renderer.circle_renderer)
+      plot.add_layout(default_label)
+      plot.add_layout(cardinality_label_set)
+      # plot.add_layout(title_label)
+      # plot.add_layout(columns_label)
+      bokeh_io.curdoc.js_on_event("document_ready", setup_graph_manager(plot))
+      graph_renderer.node_renderer.data_source.selected.js_on_change("indices", toggle_tapped)
 
       bokeh_models.Column.new(
         children: [
           bokeh_models.Row.new(
             children: [
-              left_spacer,
+              plot.button_set[:left_spacer],
               graph_renderer.selecting_node_label,
-              search_box,
-              zoom_mode_toggle,
-              tap_mode_toggle,
-              display_title_mode_toggle,
-              zoom_in_button,
-              zoom_out_button,
-              right_spacer,
+              plot.button_set[:search_box],
+              plot.button_set[:zoom_mode_toggle],
+              plot.button_set[:tap_mode_toggle],
+              plot.button_set[:display_title_mode_toggle],
+              plot.button_set[:zoom_in_button],
+              plot.button_set[:zoom_out_button],
+              plot.button_set[:right_spacer],
             ],
             sizing_mode: "stretch_width",
           ),
-          plot,
+          plot.plot,
         ],
         sizing_mode: "stretch_both",
       )
@@ -103,35 +64,9 @@ module ErdMap
       puts output_path
     end
 
-    def save_mouse_position
-      <<~JS
-        if (window.saveMousePosition !== undefined) { clearTimeout(window.saveMousePosition) }
-        window.saveMousePosition = setTimeout(function() {
-          window.lastMouseX = cb_obj.x
-          window.lastMouseY = cb_obj.y
-        }, 100)
-      JS
-    end
-
-    def custom_js(function_name)
+    def setup_graph_manager(plot)
       bokeh_models.CustomJS.new(
-        code: <<~JS
-          window.graphManager.cbObj = cb_obj
-          window.graphManager.#{function_name}()
-        JS
-      )
-    end
-
-    def setup_graph_manager(search_box:, zoom_mode_toggle:, tap_mode_toggle:, display_title_mode_toggle:, plot:)
-      bokeh_models.CustomJS.new(
-        args: graph_renderer.js_args.merge(
-          searchBox: search_box,
-          selectingNodeLabel: graph_renderer.selecting_node_label,
-          zoomModeToggle: zoom_mode_toggle,
-          tapModeToggle: tap_mode_toggle,
-          displayTitleModeToggle: display_title_mode_toggle,
-          plot: plot,
-        ),
+        args: graph_renderer.js_args(plot),
         code: <<~JS
           #{graph_manager}
           window.graphManager = new GraphManager({
@@ -150,6 +85,15 @@ module ErdMap
             displayTitleModeToggle,
             windowObj: window,
           })
+        JS
+      )
+    end
+
+    def toggle_tapped
+      bokeh_models.CustomJS.new(
+        code: <<~JS
+          window.graphManager.cbObj = cb_obj
+          window.graphManager.toggleTapped()
         JS
       )
     end
@@ -212,12 +156,6 @@ module ErdMap
         text_color: "text_color",
         text_alpha: { field: "alpha" },
       )
-    end
-
-    def search_box
-      @search_box ||= bokeh_models.TextInput.new(placeholder: "🔍 Search model", width: 200).tap do |input|
-        input.js_on_change("value", custom_js("searchNodes"))
-      end
     end
 
     def graph_manager
