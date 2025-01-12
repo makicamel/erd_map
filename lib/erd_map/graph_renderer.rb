@@ -67,7 +67,7 @@ module ErdMap
     end
 
     def js_args(plot)
-      @js_args ||= {
+      {
         graphRenderer: graph_renderer,
         rectRenderer: rect_renderer,
         circleRenderer: circle_renderer,
