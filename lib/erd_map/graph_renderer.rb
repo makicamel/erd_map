@@ -19,14 +19,6 @@ module ErdMap
       [circle_renderer, rect_renderer]
     end
 
-    def selecting_node_label
-      @selecting_node_label ||= bokeh_models.Div.new(
-        text: "",
-        height: 28,
-        styles: { display: :flex, align_items: :center },
-      )
-    end
-
     def cardinality_data_source
       return @cardinality_data_source if @cardinality_data_source
 
@@ -86,7 +78,7 @@ module ErdMap
         chunkedNodesData: graph.chunked_nodes.to_json,
         nodeWithCommunityIndexData: graph.node_with_community_index.to_json,
         searchBox: plot.button_set[:search_box],
-        selectingNodeLabel: selecting_node_label,
+        selectingNodeLabel: plot.button_set[:selecting_node_label],
         zoomModeToggle: plot.button_set[:zoom_mode_toggle],
         tapModeToggle: plot.button_set[:tap_mode_toggle],
         displayTitleModeToggle: plot.button_set[:display_title_mode_toggle],

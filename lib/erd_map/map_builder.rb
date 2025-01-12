@@ -38,7 +38,7 @@ module ErdMap
           bokeh_models.Row.new(
             children: [
               plot.button_set[:left_spacer],
-              graph_renderer.selecting_node_label,
+              plot.button_set[:selecting_node_label],
               plot.button_set[:search_box],
               plot.button_set[:zoom_mode_toggle],
               plot.button_set[:tap_mode_toggle],

@@ -79,6 +79,7 @@ module ErdMap
       def initialize
         @button_set = {
           left_spacer: left_spacer,
+          selecting_node_label: selecting_node_label,
           search_box: search_box,
           zoom_mode_toggle: zoom_mode_toggle,
           tap_mode_toggle: tap_mode_toggle,
@@ -95,6 +96,14 @@ module ErdMap
 
       def right_spacer
         bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
+      end
+
+      def selecting_node_label
+        bokeh_models.Div.new(
+          text: "",
+          height: 28,
+          styles: { display: :flex, align_items: :center },
+        )
       end
 
       def search_box
