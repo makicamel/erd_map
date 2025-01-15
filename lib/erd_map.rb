@@ -8,14 +8,6 @@ require "erd_map/plot"
 
 module ErdMap
   class << self
-    def queue
-      @queue
-    end
-
-    def queue=(queue)
-      @queue = queue
-    end
-
     def py_call_modules
       @py_call_modules
     end
