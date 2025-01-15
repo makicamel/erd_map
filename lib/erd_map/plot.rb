@@ -87,6 +87,7 @@ module ErdMap
           re_layout_button: re_layout_button,
           zoom_in_button: zoom_in_button,
           zoom_out_button: zoom_out_button,
+          re_compute_button: re_compute_button,
           right_spacer: right_spacer,
         }
       end
@@ -146,6 +147,34 @@ module ErdMap
       def zoom_out_button
         bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
           button.js_on_click(custom_js("zoomOut"))
+        end
+      end
+
+      def re_compute_button
+        bokeh_models.Button.new(label: "Re-Compute", button_type: "default").tap do |button|
+          button.js_on_click(
+            bokeh_models.CustomJS.new(
+              args: { button: button },
+              code: <<~JS
+                button.disabled = true
+                button.label = "Computing ..."
+
+                fetch("/erd_map", { method: "PUT" })
+                  .then(response => {
+                    if (response.ok) { return response.text() }
+                    else { return response.json().then(json => { throw new Error(json.message) }) }
+                  })
+                  .then(data => { window.location.reload() })
+                  .catch(error => {
+                    alert(error.message)
+                    console.error(error)
+
+                    button.disabled = false
+                    button.label = "Re-Compute"
+                  })
+              JS
+            )
+          )
         end
       end
 

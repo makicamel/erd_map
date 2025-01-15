@@ -43,6 +43,7 @@ module ErdMap
               plot.button_set[:re_layout_button],
               plot.button_set[:zoom_in_button],
               plot.button_set[:zoom_out_button],
+              plot.button_set[:re_compute_button],
               plot.button_set[:right_spacer],
             ],
             sizing_mode: "stretch_width",
@@ -56,7 +57,7 @@ module ErdMap
     def save(layout)
       tmp_dir = Rails.root.join("tmp", "erd_map")
       FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
-      output_path = File.join(tmp_dir, "result.html")
+      output_path = File.join(tmp_dir, "map.html")
 
       bokeh_io.output_file(output_path)
       bokeh_io.save(layout)
