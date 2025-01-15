@@ -156,7 +156,13 @@ module ErdMap
       whole_models.each do |model|
         whole_graph.add_node(model.name)
         [:has_many, :has_one, :belongs_to].each do |association_type|
-          model.reflect_on_all_associations(association_type).select { |mod| !mod.options[:polymorphic] }.map(&:class_name).uniq.select { |target| target.constantize.respond_to?(:column_names) }.map do |target|
+          model
+            .reflect_on_all_associations(association_type)
+            .select { |mod| !mod.options[:polymorphic] }
+            .map(&:class_name)
+            .uniq
+            .select { |target| target.constantize.respond_to?(:column_names) }
+            .map do |target|
             if association_type == :belongs_to
               whole_graph.add_edge(target, model.name)
             else
