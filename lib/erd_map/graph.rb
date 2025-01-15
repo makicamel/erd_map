@@ -158,7 +158,7 @@ module ErdMap
         [:has_many, :has_one, :belongs_to].each do |association_type|
           model
             .reflect_on_all_associations(association_type)
-            .select { |mod| !mod.options[:polymorphic] }
+            .select { |mod| !mod.options[:polymorphic] && !mod.options[:anonymous_class] }
             .map(&:class_name)
             .uniq
             .select { |target| target.constantize.respond_to?(:column_names) }
