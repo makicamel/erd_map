@@ -17,7 +17,7 @@ module ErdMap
         k = 1.0 / Math.sqrt(nodes_size) * 3.0
 
         subgraph = whole_graph.subgraph(display_nodes)
-        layout = nx.spring_layout(subgraph, seed: 1, k: k)
+        layout = networkx.spring_layout(subgraph, seed: 1, k: k)
 
         layout_hash = {}
         layout.each do |node, xy|
@@ -34,7 +34,7 @@ module ErdMap
     def chunked_nodes
       return @chunked_nodes if @chunked_nodes
 
-      centralities = nx.eigenvector_centrality(whole_graph) # { node_name => centrality }
+      centralities = networkx.eigenvector_centrality(whole_graph) # { node_name => centrality }
       sorted_nodes = centralities.sort_by { |_node, centrality| centrality }.reverse.map(&:first)
 
       chunk_sizes = []
@@ -133,12 +133,12 @@ module ErdMap
 
     private
 
-    attr_reader :nx, :networkx_community
+    attr_reader :networkx, :networkx_community
     attr_reader :whole_graph
 
     def initialize
       import_modules = ErdMap.py_call_modules.imported_modules
-      @nx = import_modules[:nx]
+      @networkx = import_modules[:networkx]
       @networkx_community = import_modules[:networkx_community]
       @whole_graph = build_whole_graph
     end
@@ -151,7 +151,7 @@ module ErdMap
     end
 
     def build_whole_graph
-      whole_graph = nx.Graph.new
+      whole_graph = networkx.Graph.new
 
       whole_models.each do |model|
         whole_graph.add_node(model.name)
