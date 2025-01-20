@@ -13,7 +13,7 @@ module ErdMap
     HIGHLIGHT_EDGE_COLOR = "orange"
     HIGHLIGHT_TEXT_COLOR = "white"
     BASIC_COLOR = "darkslategray"
-    EMPTHASIS_NODE_SIZE = 80
+    EMPHASIS_NODE_SIZE = 80
 
     def renderers
       [circle_renderer, rect_renderer]
@@ -59,7 +59,7 @@ module ErdMap
         HIGHLIGHT_EDGE_COLOR: HIGHLIGHT_EDGE_COLOR,
         HIGHLIGHT_TEXT_COLOR: HIGHLIGHT_TEXT_COLOR,
         BASIC_COLOR: BASIC_COLOR,
-        EMPTHASIS_NODE_SIZE: EMPTHASIS_NODE_SIZE,
+        EMPHASIS_NODE_SIZE: EMPHASIS_NODE_SIZE,
       }
     end
 
