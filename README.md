@@ -30,12 +30,14 @@ echo 'eval "$(pyenv init - zsh)"' >> ~/.zshrc
 # Install latest version of python
 pyenv install $(pyenv install --list | grep -E '^\s*[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
 pyenv global $(pyenv install --list | grep -E '^\s*[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1)
-
-# Install packages using pip
-pip install networkx bokeh scipy
 ```
 
 </details>
+
+```bash
+# Install packages, for example with pip
+pip install networkx bokeh scipy
+```
 
 ## Installation
 
