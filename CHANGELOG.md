@@ -1,3 +1,7 @@
+## 0.1.2 (2025-01-24)
+
+- Fix an error when `default_protect_from_forgery` is false
+
 ## 0.1.1 (2025-01-19)
 
 - Fix duplicated coordinate shift on hover

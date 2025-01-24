@@ -4,7 +4,7 @@ module ErdMap
   class ErdMapController < ApplicationController
     FILE_PATH = Rails.root.join("tmp", "erd_map", "map.html")
 
-    skip_before_action :verify_authenticity_token, only: [:update]
+    skip_forgery_protection
 
     def index
       if File.exist?(FILE_PATH)
