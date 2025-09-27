@@ -159,9 +159,8 @@ module ErdMap
           model
             .reflect_on_all_associations(association_type)
             .select { |mod| !mod.options[:polymorphic] && !mod.options[:anonymous_class] }
-            .map(&:class_name)
+            .map { |mod| mod.klass.name }
             .uniq
-            .select { |target| target.constantize.respond_to?(:column_names) }
             .map do |target|
             if association_type == :belongs_to
               whole_graph.add_edge(target, model.name)
