@@ -1,3 +1,7 @@
+## 0.1.3 (2025-09-29)
+
+- Fix error when using ActiveStorage models
+
 ## 0.1.2 (2025-01-24)
 
 - Fix an error when `default_protect_from_forgery` is false
