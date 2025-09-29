@@ -59,7 +59,7 @@ Add the following to your `config/routes.rb` and access `/erd_map` in your brows
 
 ```ruby
 Rails.application.routes.draw do
-  mount ErdMap::Engine => "erd_map"
+  mount ErdMap::Engine => "erd_map" if defined?(ErdMap)
 end
 ```
 
