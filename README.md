@@ -37,6 +37,8 @@ pyenv global $(pyenv install --list | grep -E '^\s*[0-9]+\.[0-9]+\.[0-9]+$' | ta
 ```bash
 # Install packages, for example with pip
 pip install networkx bokeh scipy
+# with pip3
+pip3 install networkx bokeh scipy
 ```
 
 ## Installation
