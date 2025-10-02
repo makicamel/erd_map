@@ -1,3 +1,7 @@
+## 0.1.4 (2025-10-02)
+
+- Stop loading Python modules at Rails process initialization
+
 ## 0.1.3 (2025-09-29)
 
 - Fix error when using ActiveStorage models
