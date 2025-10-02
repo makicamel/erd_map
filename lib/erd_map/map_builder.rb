@@ -57,7 +57,7 @@ module ErdMap
     def save(layout)
       bokeh_io.output_file(ErdMap::MAP_FILE.to_s)
       bokeh_io.save(layout)
-      puts ErdMap::MAP_FILE
+      puts "[erd_map] #{ErdMap::MAP_FILE} (#{Process.pid})"
     end
 
     def setup_graph_manager(plot)
@@ -102,10 +102,19 @@ module ErdMap
 
     class << self
       def build
+        log "Loading modules starts."
         ErdMap.load_py_call_modules
-        Rails.logger.info "build start"
+        log "Loading modules completed."
+
+        log "Building map starts."
         new.execute
-        Rails.logger.info "build completed"
+        log "Building map completed."
+      end
+
+      private
+
+      def log(text)
+        puts "[erd_map] #{text} (#{Process.pid})"
       end
     end
   end
