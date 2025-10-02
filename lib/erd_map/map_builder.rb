@@ -55,9 +55,7 @@ module ErdMap
     end
 
     def save(layout)
-      tmp_dir = Rails.root.join("tmp", "erd_map")
-      FileUtils.makedirs(tmp_dir) unless Dir.exist?(tmp_dir)
-      output_path = File.join(tmp_dir, "map.html")
+      output_path = Rails.root.join("tmp", "erd_map", "map.html").to_s
 
       bokeh_io.output_file(output_path)
       bokeh_io.save(layout)
