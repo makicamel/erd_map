@@ -55,11 +55,9 @@ module ErdMap
     end
 
     def save(layout)
-      output_path = Rails.root.join("tmp", "erd_map", "map.html").to_s
-
-      bokeh_io.output_file(output_path)
+      bokeh_io.output_file(ErdMap::MAP_FILE.to_s)
       bokeh_io.save(layout)
-      puts output_path
+      puts ErdMap::MAP_FILE
     end
 
     def setup_graph_manager(plot)
