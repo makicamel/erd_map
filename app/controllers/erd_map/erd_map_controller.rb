@@ -10,22 +10,16 @@ module ErdMap
       if File.exist?(FILE_PATH)
         render html: File.read(FILE_PATH).html_safe
       else
-        _stdout, stderr, status = Open3.capture3("rails runner 'ErdMap::MapBuilder.build'")
-        if status.success?
-          render html: File.read(FILE_PATH).html_safe
-        else
-          render plain: "Error: #{stderr}", status: :unprocessable_entity
-        end
+        pid = spawn("rails erd_map")
+        Process.detach(pid)
       end
     end
 
     def update
-      _stdout, stderr, status = Open3.capture3("rails runner 'ErdMap::MapBuilder.build'")
-      if status.success?
-        head :ok
-      else
-        render json: { message: "Error: \n#{stderr}" }, status: :unprocessable_entity
-      end
+      File.delete(FILE_PATH) if File.exist?(FILE_PATH)
+      pid = spawn("rails erd_map")
+      Process.detach(pid)
+      redirect_to erd_map.root_path, status: :see_other
     end
   end
 end

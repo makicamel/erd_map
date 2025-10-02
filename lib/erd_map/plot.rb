@@ -159,19 +159,17 @@ module ErdMap
                 button.disabled = true
                 button.label = "Computing ..."
 
-                fetch("/erd_map", { method: "PUT" })
-                  .then(response => {
-                    if (response.ok) { return response.text() }
-                    else { return response.json().then(json => { throw new Error(json.message) }) }
-                  })
-                  .then(data => { window.location.reload() })
-                  .catch(error => {
-                    alert(error.message)
-                    console.error(error)
-
-                    button.disabled = false
-                    button.label = "Re-Compute"
-                  })
+                const form = document.createElement("form")
+                form.method = "POST"
+                form.action = "/erd_map"
+                form.style.display = "none"
+                const input = document.createElement("input")
+                input.type = "hidden"
+                input.name = "_method"
+                input.value = "PUT"
+                form.appendChild(input)
+                document.body.appendChild(form)
+                form.submit()
               JS
             )
           )
