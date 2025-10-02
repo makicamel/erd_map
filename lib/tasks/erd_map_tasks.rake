@@ -3,11 +3,16 @@
 desc "Compute erd_map"
 task erd_map: :environment do
   FileUtils.makedirs(ErdMap::TMP_DIR) unless Dir.exist?(ErdMap::TMP_DIR)
+  timeout = 5 * 60
 
   if File.exist?(ErdMap::LOCK_FILE)
     pid = File.read(ErdMap::LOCK_FILE).to_i
-    alive_process = pid > 0 && (Process.kill(0, pid) rescue false)
-    if alive_process
+
+    if Time.now - File.mtime(ErdMap::LOCK_FILE) > timeout
+      puts "Lock expired. Kill process and remove lock file (pid: #{pid}, file: #{ErdMap::LOCK_FILE})."
+      Process.kill("KILL", pid) rescue nil
+      File.delete(ErdMap::LOCK_FILE)
+    else
       puts "ErdMap is already computing (pid: #{pid}, file: #{ErdMap::LOCK_FILE})."
       exit 0
     end
