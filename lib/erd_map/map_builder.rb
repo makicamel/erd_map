@@ -102,6 +102,7 @@ module ErdMap
 
     class << self
       def build
+        ErdMap.load_py_call_modules
         Rails.logger.info "build start"
         new.execute
         Rails.logger.info "build completed"

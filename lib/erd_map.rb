@@ -12,8 +12,8 @@ module ErdMap
       @py_call_modules
     end
 
-    def py_call_modules=(py_call_modules)
-      @py_call_modules = py_call_modules
+    def load_py_call_modules
+      @py_call_modules = ErdMap::PyCallModules.new
     end
   end
 end
