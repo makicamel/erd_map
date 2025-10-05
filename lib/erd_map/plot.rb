@@ -27,7 +27,7 @@ module ErdMap
     end
 
     def header
-      @header ||= Header.new
+      @header.to_a
     end
 
     private
@@ -36,6 +36,7 @@ module ErdMap
 
     def initialize(graph)
       @graph = graph
+      @header = Header.new
       register_callback
     end
 
@@ -72,9 +73,29 @@ module ErdMap
 
     class Header
       extend Forwardable
-      def_delegators :@header, :[]
+      ACCESSIBLE_PARTS = [:search_box, :selecting_node_label, :zoom_mode_toggle, :tap_mode_toggle, :display_title_mode_toggle]
+
+      def to_a
+        [
+          :left_spacer,
+          :selecting_node_label,
+          :search_box,
+          :zoom_mode_toggle,
+          :tap_mode_toggle,
+          :display_title_mode_toggle,
+          :re_layout_button,
+          :zoom_in_button,
+          :zoom_out_button,
+          :re_compute_button,
+          :right_spacer,
+        ].map { |name| @header[name] }
+      end
 
       private
+
+      ACCESSIBLE_PARTS.each do |name|
+        define_method(name) { @header[name] }
+      end
 
       def initialize
         @header = {
@@ -188,6 +209,10 @@ module ErdMap
           JS
         )
       end
+    end
+
+    Header::ACCESSIBLE_PARTS.each do |name|
+      public define_method(name) { @header.__send__(name) }
     end
   end
 end

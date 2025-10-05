@@ -33,19 +33,7 @@ module ErdMap
       bokeh_models.Column.new(
         children: [
           bokeh_models.Row.new(
-            children: [
-              plot.header[:left_spacer],
-              plot.header[:selecting_node_label],
-              plot.header[:search_box],
-              plot.header[:zoom_mode_toggle],
-              plot.header[:tap_mode_toggle],
-              plot.header[:display_title_mode_toggle],
-              plot.header[:re_layout_button],
-              plot.header[:zoom_in_button],
-              plot.header[:zoom_out_button],
-              plot.header[:re_compute_button],
-              plot.header[:right_spacer],
-            ],
+            children: plot.header,
             sizing_mode: "stretch_width",
           ),
           plot.plot,
