@@ -26,8 +26,8 @@ module ErdMap
       end
     end
 
-    def button_set
-      @button_set ||= ButtonSet.new
+    def header
+      @header ||= Header.new
     end
 
     private
@@ -70,14 +70,14 @@ module ErdMap
       JS
     end
 
-    class ButtonSet
+    class Header
       extend Forwardable
-      def_delegators :@button_set, :[]
+      def_delegators :@header, :[]
 
       private
 
       def initialize
-        @button_set = {
+        @header = {
           left_spacer: left_spacer,
           selecting_node_label: selecting_node_label,
           search_box: search_box,
