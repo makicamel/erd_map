@@ -1,3 +1,7 @@
+## 0.1.6 (2025-10-07)
+
+- Fix bug not working search box
+
 ## 0.1.5 (2025-10-06)
 
 - Display node names with translated model names
