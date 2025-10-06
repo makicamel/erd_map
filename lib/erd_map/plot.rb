@@ -77,52 +77,32 @@ module ErdMap
 
       def to_a
         [
-          :left_spacer,
-          :selecting_node_label,
-          :search_box,
-          :zoom_mode_toggle,
-          :tap_mode_toggle,
-          :display_title_mode_toggle,
-          :re_layout_button,
-          :zoom_in_button,
-          :zoom_out_button,
-          :re_compute_button,
-          :right_spacer,
-        ].map { |name| @header[name] }
+          left_spacer,
+          selecting_node_label,
+          search_box,
+          zoom_mode_toggle,
+          tap_mode_toggle,
+          display_title_mode_toggle,
+          re_layout_button,
+          zoom_in_button,
+          zoom_out_button,
+          re_compute_button,
+          right_spacer,
+        ]
       end
 
       private
 
-      ACCESSIBLE_PARTS.each do |name|
-        define_method(name) { @header[name] }
-      end
-
-      def initialize
-        @header = {
-          left_spacer: left_spacer,
-          selecting_node_label: selecting_node_label,
-          search_box: search_box,
-          zoom_mode_toggle: zoom_mode_toggle,
-          tap_mode_toggle: tap_mode_toggle,
-          display_title_mode_toggle: display_title_mode_toggle,
-          re_layout_button: re_layout_button,
-          zoom_in_button: zoom_in_button,
-          zoom_out_button: zoom_out_button,
-          re_compute_button: re_compute_button,
-          right_spacer: right_spacer,
-        }
-      end
-
       def left_spacer
-        bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
+        @left_spacer ||= bokeh_models.Spacer.new(width: 0, sizing_mode: "stretch_width")
       end
 
       def right_spacer
-        bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
+        @right_spacer ||= bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
       end
 
       def selecting_node_label
-        bokeh_models.Div.new(
+        @selecting_node_label ||= bokeh_models.Div.new(
           text: "",
           height: 28,
           styles: { display: :flex, align_items: :center },
@@ -130,49 +110,49 @@ module ErdMap
       end
 
       def search_box
-        bokeh_models.TextInput.new(placeholder: "🔍 Search model", width: 200).tap do |input|
+        @search_box ||= bokeh_models.TextInput.new(placeholder: "🔍 Search model", width: 200).tap do |input|
           input.js_on_change("value", custom_js("searchNodes"))
         end
       end
 
       def zoom_mode_toggle
-        bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "default").tap do |button|
+        @zoom_mode_toggle ||= bokeh_models.Button.new(label: "Wheel mode: fix", button_type: "default").tap do |button|
           button.js_on_click(custom_js("toggleZoomMode"))
         end
       end
 
       def tap_mode_toggle
-        bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
+        @tap_mode_toggle ||= bokeh_models.Button.new(label: "Tap mode: association", button_type: "default").tap do |button|
           button.js_on_click(custom_js("toggleTapMode"))
         end
       end
 
       def display_title_mode_toggle
-        bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
+        @display_title_mode_toggle ||= bokeh_models.Button.new(label: "Display mode: title", button_type: "default").tap do |button|
           button.js_on_click(custom_js("toggleDisplayTitleMode"))
         end
       end
 
       def re_layout_button
-        bokeh_models.Button.new(label: "Re-Layout", button_type: "default").tap do |button|
+        @re_layout_button ||= bokeh_models.Button.new(label: "Re-Layout", button_type: "default").tap do |button|
           button.js_on_click(custom_js("reLayout"))
         end
       end
 
       def zoom_in_button
-        bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
+        @zoom_in_button ||= bokeh_models.Button.new(label: "Zoom In", button_type: "primary").tap do |button|
           button.js_on_click(custom_js("zoomIn",))
         end
       end
 
       def zoom_out_button
-        bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
+        @zoom_out_button ||= bokeh_models.Button.new(label: "Zoom Out", button_type: "success").tap do |button|
           button.js_on_click(custom_js("zoomOut"))
         end
       end
 
       def re_compute_button
-        bokeh_models.Button.new(label: "Re-Compute", button_type: "default").tap do |button|
+        @re_compute_button ||= bokeh_models.Button.new(label: "Re-Compute", button_type: "default").tap do |button|
           button.js_on_click(
             bokeh_models.CustomJS.new(
               args: { button: button },
