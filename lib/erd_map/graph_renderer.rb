@@ -81,12 +81,14 @@ module ErdMap
 
       columns_label = []
       title_label = []
+      i18n_label = []
       rect_heights = []
       graph.node_names.map do |node_name|
         title_text = format_text([node_name], title: true)
         columns_text = [*title_text.scan("\n"), "\n", format_text(graph.association_columns[node_name])].join
         columns_label << columns_text
         title_label << [title_text, "\n", *columns_text.scan("\n")].join
+        i18n_label << [node_name, graph.nodes_with_i18n_labels[node_name]].compact_blank.join("\n")
 
         padding = 36
         line_count = columns_text.scan("\n").size + 1
@@ -102,6 +104,7 @@ module ErdMap
           radius: graph.node_radius,
           original_radius: graph.node_radius,
           rect_height: rect_heights,
+          i18n_label: i18n_label,
           title_label: title_label,
           columns_label: columns_label,
           fill_color: graph.node_colors,
@@ -181,7 +184,7 @@ module ErdMap
       bokeh_models.LabelSet.new(
         x: "x",
         y: "y",
-        text: "index",
+        text: { field: "i18n_label" },
         source: graph_renderer.node_renderer.data_source,
         text_font_size: "12pt",
         text_color: { field: "text_color" },

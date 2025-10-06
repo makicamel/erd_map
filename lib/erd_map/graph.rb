@@ -99,6 +99,15 @@ module ErdMap
       end
     end
 
+    def nodes_with_i18n_labels
+      return @nodes_with_i18n_labels if @nodes_with_i18n_labels
+      @nodes_with_i18n_labels = {}
+      whole_models.each do |model|
+        @nodes_with_i18n_labels[model.name] = model.model_name.human(default: "")
+      end
+      @nodes_with_i18n_labels
+    end
+
     def association_columns
       return @association_columns if @association_columns
 
