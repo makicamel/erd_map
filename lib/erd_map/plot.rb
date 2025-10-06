@@ -98,7 +98,7 @@ module ErdMap
       end
 
       def right_spacer
-        @right_spacer ||= bokeh_models.Spacer.new(width: 30, sizing_mode: "fixed")
+        @right_spacer ||= bokeh_models.Spacer.new(height: 1, width: 30, sizing_mode: "fixed")
       end
 
       def selecting_node_label
