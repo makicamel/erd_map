@@ -1,3 +1,7 @@
+## 0.1.5 (2025-10-06)
+
+- Display node names with translated model names
+
 ## 0.1.4 (2025-10-02)
 
 - Stop loading Python modules at Rails process initialization
